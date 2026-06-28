@@ -3,6 +3,7 @@ package com.example.sshapkdownloader
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,7 +14,6 @@ import android.view.Gravity
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -32,9 +32,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var ipAddressEditText: EditText
-    private lateinit var sshKeyEditText: EditText
     private lateinit var apkListContainer: LinearLayout
-    private var sshKeyVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,14 +48,34 @@ class MainActivity : Activity() {
     private fun createContentView(): ScrollView {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 36, 32, 32)
+            setPadding(32, 28, 32, 32)
         }
 
-        root.addView(TextView(this).apply {
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        header.addView(TextView(this).apply {
             text = "SshApkDownloader"
             textSize = 24f
-            gravity = Gravity.START
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
+
+        header.addView(Button(this).apply {
+            text = "Konfiguracja"
+            textSize = 12f
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, ConfigActivity::class.java))
+            }
+        })
+
+        root.addView(header)
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 48, 0, 0)
+        }
 
         ipAddressEditText = EditText(this).apply {
             hint = "user@host:port"
@@ -65,32 +83,9 @@ class MainActivity : Activity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             imeOptions = EditorInfo.IME_ACTION_NEXT
         }
-        root.addView(ipAddressEditText)
+        content.addView(ipAddressEditText)
 
-        val sshKeyRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        sshKeyEditText = EditText(this).apply {
-            hint = "SSH key"
-            isSingleLine = true
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            imeOptions = EditorInfo.IME_ACTION_DONE
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        sshKeyRow.addView(sshKeyEditText)
-
-        sshKeyRow.addView(ImageButton(this).apply {
-            contentDescription = "Show SSH key"
-            setImageResource(android.R.drawable.ic_menu_view)
-            setOnClickListener {
-                toggleSshKeyVisibility()
-            }
-        })
-        root.addView(sshKeyRow)
-
-        root.addView(Button(this).apply {
+        content.addView(Button(this).apply {
             text = "Connect"
             setOnClickListener {
                 connectAndLoadApks()
@@ -100,7 +95,9 @@ class MainActivity : Activity() {
         apkListContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-        root.addView(apkListContainer)
+        content.addView(apkListContainer)
+
+        root.addView(content)
 
         return ScrollView(this).apply {
             addView(root)
@@ -109,33 +106,21 @@ class MainActivity : Activity() {
 
     private fun restoreSavedValues() {
         ipAddressEditText.setText(preferences.getString("ip_address", ""))
-        sshKeyEditText.setText(preferences.getString("ssh_key", ""))
     }
 
     private fun saveValues() {
         preferences.edit()
             .putString("ip_address", ipAddressEditText.text.toString())
-            .putString("ssh_key", sshKeyEditText.text.toString())
             .apply()
-    }
-
-    private fun toggleSshKeyVisibility() {
-        sshKeyVisible = !sshKeyVisible
-        sshKeyEditText.inputType = if (sshKeyVisible) {
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-        } else {
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        sshKeyEditText.setSelection(sshKeyEditText.text.length)
     }
 
     private fun connectAndLoadApks() {
         saveValues()
         val address = ipAddressEditText.text.toString().trim()
-        val privateKey = sshKeyEditText.text.toString()
+        val privateKey = getStoredPrivateKey()
 
         if (address.isEmpty() || privateKey.isBlank()) {
-            showToast("IP address and SSH key are required")
+            showToast("SSH target and generated key are required")
             return
         }
 
@@ -239,10 +224,10 @@ class MainActivity : Activity() {
     private fun downloadApk(apkName: String) {
         saveValues()
         val address = ipAddressEditText.text.toString().trim()
-        val privateKey = sshKeyEditText.text.toString()
+        val privateKey = getStoredPrivateKey()
 
         if (address.isEmpty() || privateKey.isBlank()) {
-            showToast("IP address and SSH key are required")
+            showToast("SSH target and generated key are required")
             return
         }
 
@@ -305,6 +290,10 @@ class MainActivity : Activity() {
 
     private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun getStoredPrivateKey(): String {
+        return preferences.getString("private_ssh_key", "") ?: ""
     }
 
     private fun showToastOnUiThread(message: String) {
