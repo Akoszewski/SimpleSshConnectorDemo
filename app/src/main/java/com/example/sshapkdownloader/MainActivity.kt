@@ -1,9 +1,15 @@
 package com.example.sshapkdownloader
 
+import android.Manifest
 import android.app.Activity
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -36,6 +42,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        createNotificationChannel()
+        requestNotificationPermission()
         setContentView(createContentView())
         restoreSavedValues()
     }
@@ -242,40 +250,51 @@ class MainActivity : Activity() {
                 } finally {
                     session.disconnect()
                 }
-            }.onSuccess {
+            }.onSuccess { apkUri ->
                 showToastOnUiThread("Download completed: $apkName")
+                showDownloadedNotification(apkName, apkUri)
             }.onFailure { error ->
                 showToastOnUiThread("Download error: ${error.message ?: error.javaClass.simpleName}")
             }
         }.start()
     }
 
-    private fun downloadRemoteApk(session: Session, apkName: String) {
+    private fun downloadRemoteApk(session: Session, apkName: String): Uri {
         ApkNameValidator.requireValid(apkName)
 
         val channel = session.openChannel("sftp") as ChannelSftp
         channel.connect(15_000)
         try {
             channel.cd("Artifacts/android")
-            openDownloadOutputStream(apkName).use { output ->
+            val destination = openDownloadDestination(apkName)
+            destination.outputStream.use { output ->
                 channel.get(apkName, output)
             }
+            destination.markComplete()
+            return destination.uri
         } finally {
             channel.disconnect()
         }
     }
 
-    private fun openDownloadOutputStream(apkName: String): OutputStream {
+    private fun openDownloadDestination(apkName: String): DownloadDestination {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, apkName)
-                put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
+                put(MediaStore.Downloads.MIME_TYPE, DownloadedApkProvider.APK_MIME_TYPE)
                 put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/SshApkDownloader")
-                put(MediaStore.Downloads.IS_PENDING, 0)
+                put(MediaStore.Downloads.IS_PENDING, 1)
             }
             val uri: Uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: error("Cannot create download file")
-            contentResolver.openOutputStream(uri) ?: error("Cannot open download file")
+            val outputStream = contentResolver.openOutputStream(uri) ?: error("Cannot open download file")
+
+            DownloadDestination(uri, outputStream) {
+                val completedValues = ContentValues().apply {
+                    put(MediaStore.Downloads.IS_PENDING, 0)
+                }
+                contentResolver.update(uri, completedValues, null, null)
+            }
         } else {
             val downloadsDir = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
@@ -284,8 +303,77 @@ class MainActivity : Activity() {
             if (!downloadsDir.exists() && !downloadsDir.mkdirs()) {
                 error("Cannot create ${downloadsDir.absolutePath}")
             }
-            File(downloadsDir, apkName).outputStream()
+            val uri = Uri.Builder()
+                .scheme("content")
+                .authority("$packageName.downloaded-apks")
+                .appendPath(apkName)
+                .build()
+            DownloadDestination(uri, File(downloadsDir, apkName).outputStream()) {}
         }
+    }
+
+    private fun showDownloadedNotification(apkName: String, apkUri: Uri) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(apkUri, DownloadedApkProvider.APK_MIME_TYPE)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            apkName.hashCode(),
+            installIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = notificationBuilder()
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("APK downloaded")
+            .setContentText(apkName)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager().notify(apkName.hashCode(), notification)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return
+        }
+
+        val channel = NotificationChannel(
+            DOWNLOAD_CHANNEL_ID,
+            "APK downloads",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        notificationManager().createNotificationChannel(channel)
+    }
+
+    private fun requestNotificationPermission() {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    private fun notificationBuilder(): Notification.Builder {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, DOWNLOAD_CHANNEL_ID)
+        } else {
+            Notification.Builder(this)
+        }
+    }
+
+    private fun notificationManager(): NotificationManager {
+        return getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
     private fun showToast(message: String) {
@@ -300,5 +388,16 @@ class MainActivity : Activity() {
         runOnUiThread {
             showToast(message)
         }
+    }
+
+    private data class DownloadDestination(
+        val uri: Uri,
+        val outputStream: OutputStream,
+        val markComplete: () -> Unit
+    )
+
+    companion object {
+        private const val DOWNLOAD_CHANNEL_ID = "apk_downloads"
+        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 100
     }
 }

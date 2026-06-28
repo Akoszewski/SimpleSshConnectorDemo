@@ -41,6 +41,7 @@ Download behavior:
 - Pressing an APK button downloads that APK file.
 - Show a Toast when the download starts.
 - Show a Toast when the download completes or fails.
+- Show a notification when the download completes. Tapping the notification should open the downloaded APK for installation.
 - Download files to a location that is easy to find in the phone file manager, so the user can install them manually.
 
 Development process:
