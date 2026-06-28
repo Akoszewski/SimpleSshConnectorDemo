@@ -63,7 +63,7 @@ class MainActivity : Activity() {
         })
 
         header.addView(Button(this).apply {
-            text = "Konfiguracja"
+            text = "Configuration"
             textSize = 12f
             setOnClickListener {
                 startActivity(Intent(this@MainActivity, ConfigActivity::class.java))

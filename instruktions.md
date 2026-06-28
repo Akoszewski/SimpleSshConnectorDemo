@@ -12,8 +12,8 @@ Implementation requirements:
 Initial UI:
 
 - On launch, show the main content lowered slightly from the top of the screen.
-- Show a small `Konfiguracja` button in the top-right corner.
-- The `Konfiguracja` button opens a separate configuration activity.
+- Show a small `Configuration` button in the top-right corner.
+- The `Configuration` button opens a separate configuration activity.
 - On launch, show one single-line text field:
   - SSH target in `user@host:port` format.
 - The SSH target field should use the hint `user@host:port`.
@@ -21,9 +21,9 @@ Initial UI:
 - The port is optional and defaults to the standard SSH port, `22`.
 - Remember the SSH target between launches.
 - The app should generate its own SSH key instead of asking the user to paste a private key.
-- In the configuration activity, add a `Generuj klucz` button.
-- Under `Generuj klucz`, show a text field containing the generated public key for copying.
-- Next to the public key text field, show a `Kopiuj` button that copies the public key to the clipboard.
+- In the configuration activity, add a `Generate key` button.
+- Under `Generate key`, show a text field containing the generated public key for copying.
+- Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.
 - Store the generated private key internally for SSH connections.
 - Show a `Connect` button below the SSH target field.
 

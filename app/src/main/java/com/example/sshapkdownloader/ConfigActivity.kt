@@ -33,12 +33,12 @@ class ConfigActivity : Activity() {
         }
 
         root.addView(TextView(this).apply {
-            text = "Konfiguracja"
+            text = "Configuration"
             textSize = 24f
         })
 
         generateButton = Button(this).apply {
-            text = "Generuj klucz"
+            text = "Generate key"
             setOnClickListener {
                 generateKey()
             }
@@ -50,7 +50,7 @@ class ConfigActivity : Activity() {
         }
 
         publicKeyEditText = EditText(this).apply {
-            hint = "Publiczny klucz SSH"
+            hint = "SSH public key"
             isSingleLine = false
             minLines = 4
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -59,7 +59,7 @@ class ConfigActivity : Activity() {
         publicKeyRow.addView(publicKeyEditText)
 
         publicKeyRow.addView(Button(this).apply {
-            text = "Kopiuj"
+            text = "Copy"
             setOnClickListener {
                 copyPublicKey()
             }
@@ -75,7 +75,7 @@ class ConfigActivity : Activity() {
 
     private fun generateKey() {
         generateButton.isEnabled = false
-        Toast.makeText(this, "Generowanie klucza", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Generating key", Toast.LENGTH_SHORT).show()
 
         Thread {
             runCatching {
@@ -89,14 +89,14 @@ class ConfigActivity : Activity() {
                 runOnUiThread {
                     publicKeyEditText.setText(keyPair.publicKeyOpenSsh)
                     generateButton.isEnabled = true
-                    Toast.makeText(this, "Wygenerowano klucz", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Key generated", Toast.LENGTH_SHORT).show()
                 }
             }.onFailure { error ->
                 runOnUiThread {
                     generateButton.isEnabled = true
                     Toast.makeText(
                         this,
-                        "Błąd generowania: ${error.message ?: error.javaClass.simpleName}",
+                        "Generation error: ${error.message ?: error.javaClass.simpleName}",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -107,12 +107,12 @@ class ConfigActivity : Activity() {
     private fun copyPublicKey() {
         val publicKey = publicKeyEditText.text.toString()
         if (publicKey.isBlank()) {
-            Toast.makeText(this, "Brak klucza publicznego", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No public key", Toast.LENGTH_SHORT).show()
             return
         }
 
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("SSH public key", publicKey))
-        Toast.makeText(this, "Skopiowano klucz publiczny", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Public key copied", Toast.LENGTH_SHORT).show()
     }
 }
