@@ -4,11 +4,14 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
+import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
@@ -57,6 +60,7 @@ class TerminalActivity : Activity() {
         commandEditText = findViewById(R.id.commandEditText)
         sendButton = findViewById(R.id.sendButton)
         disconnectButton = findViewById(R.id.disconnectButton)
+        keepCommandInputAboveKeyboard(findViewById(R.id.terminalRoot))
         disconnectButton.setOnClickListener {
             closedByUser = true
             disconnectShell()
@@ -83,6 +87,36 @@ class TerminalActivity : Activity() {
             outputTextView.text = ""
         }
         connectShell()
+    }
+
+    private fun keepCommandInputAboveKeyboard(rootView: View) {
+        val initialPaddingLeft = rootView.paddingLeft
+        val initialPaddingTop = rootView.paddingTop
+        val initialPaddingRight = rootView.paddingRight
+        val initialPaddingBottom = rootView.paddingBottom
+
+        rootView.setOnApplyWindowInsetsListener { view, insets ->
+            val keyboardBottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insets.getInsets(WindowInsets.Type.ime()).bottom
+            } else {
+                @Suppress("DEPRECATION")
+                insets.systemWindowInsetBottom
+            }
+            val navigationBottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+            } else {
+                0
+            }
+            val extraKeyboardPadding = (keyboardBottomInset - navigationBottomInset).coerceAtLeast(0)
+
+            view.setPadding(
+                initialPaddingLeft,
+                initialPaddingTop,
+                initialPaddingRight,
+                initialPaddingBottom + extraKeyboardPadding
+            )
+            insets
+        }
     }
 
     override fun onDestroy() {
