@@ -27,6 +27,13 @@ class TerminalForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        TerminalSessionManager.disconnectBecauseTaskRemoved()
+        stopForegroundCompat()
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
+
     private fun buildNotification(): Notification {
         val terminalIntent = Intent(this, TerminalActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(

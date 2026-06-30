@@ -72,4 +72,8 @@ Terminal behavior:
 - The `Clear` button resets only the local terminal buffer and refreshes the displayed output; it does not send the remote `clear` command.
 - The terminal keeps the command input above the on-screen keyboard.
 - While connected, the terminal starts a foreground service and keeps wake/Wi-Fi locks active for the session.
+- The SSH session, shell channel, terminal screen buffer, keep-alive loop, and wake/Wi-Fi locks live outside `TerminalActivity`, so they survive activity recreation and navigation between app screens.
+- Returning to the terminal screen reattaches the UI to the existing terminal session and renders the current buffered terminal output.
 - The SSH session uses a keep-alive loop while the terminal remains connected.
+- Changing activities must not disconnect the terminal session.
+- Disconnect the terminal session only when the user taps `Disconnect` or removes the app task.
