@@ -73,7 +73,8 @@ class TerminalActivity : Activity() {
             writeToShell(byteArrayOf(3))
         }
         findViewById<Button>(R.id.clearButton).setOnClickListener {
-            outputTextView.text = terminalScreenBuffer.clear()
+            terminalScreenBuffer.clear()
+            outputTextView.text = terminalScreenBuffer.renderStyled()
         }
         connectShell()
     }
@@ -265,7 +266,8 @@ class TerminalActivity : Activity() {
     }
 
     private fun appendOutput(text: String) {
-        outputTextView.text = terminalScreenBuffer.append(text)
+        terminalScreenBuffer.append(text)
+        outputTextView.text = terminalScreenBuffer.renderStyled()
         scrollOutputToBottom()
     }
 

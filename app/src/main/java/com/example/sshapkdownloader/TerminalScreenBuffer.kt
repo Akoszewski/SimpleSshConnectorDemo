@@ -1,14 +1,20 @@
 package com.example.sshapkdownloader
 
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
+
 class TerminalScreenBuffer(
     private val maxRows: Int = 2_000
 ) {
-    private val lines = mutableListOf(StringBuilder())
+    private val lines = mutableListOf<MutableList<Cell>>(mutableListOf())
     private val pendingEscape = StringBuilder()
     private var cursorRow = 0
     private var cursorColumn = 0
     private var savedCursorRow = 0
     private var savedCursorColumn = 0
+    private var currentStyle = CellStyle()
 
     fun append(text: String): String {
         var index = 0
@@ -72,11 +78,12 @@ class TerminalScreenBuffer(
 
     fun clear(): String {
         lines.clear()
-        lines.add(StringBuilder())
+        lines.add(mutableListOf())
         cursorRow = 0
         cursorColumn = 0
         savedCursorRow = 0
         savedCursorColumn = 0
+        currentStyle = CellStyle()
         pendingEscape.clear()
         return render()
     }
@@ -84,13 +91,13 @@ class TerminalScreenBuffer(
     private fun writeChar(char: Char) {
         ensureCursorLine()
         val line = lines[cursorRow]
-        while (line.length < cursorColumn) {
-            line.append(' ')
+        while (line.size < cursorColumn) {
+            line.add(Cell(' ', currentStyle))
         }
-        if (cursorColumn == line.length) {
-            line.append(char)
+        if (cursorColumn == line.size) {
+            line.add(Cell(char, currentStyle))
         } else {
-            line.setCharAt(cursorColumn, char)
+            line[cursorColumn] = Cell(char, currentStyle)
         }
         cursorColumn++
     }
@@ -103,7 +110,7 @@ class TerminalScreenBuffer(
 
     private fun ensureCursorLine() {
         while (lines.size <= cursorRow) {
-            lines.add(StringBuilder())
+            lines.add(mutableListOf())
         }
     }
 
@@ -119,15 +126,54 @@ class TerminalScreenBuffer(
         cursorRow = (cursorRow - removeCount).coerceAtLeast(0)
     }
 
-    private fun render(): String {
-        var lastNonEmptyLine = lines.indexOfLast { it.isNotEmpty() }
-        if (lastNonEmptyLine < cursorRow) {
-            lastNonEmptyLine = cursorRow
+    fun renderStyled(): CharSequence {
+        var lastVisibleLine = lines.indexOfLast { line -> line.any { it.char != ' ' } }
+        if (lastVisibleLine < cursorRow) {
+            lastVisibleLine = cursorRow
         }
-        if (lastNonEmptyLine < 0) {
+        if (lastVisibleLine < 0) {
             return ""
         }
-        return lines.take(lastNonEmptyLine + 1).joinToString("\n") { it.toString().trimEnd() }
+
+        val builder = SpannableStringBuilder()
+        lines.take(lastVisibleLine + 1).forEachIndexed { rowIndex, line ->
+            val trimmedLine = line.dropLastWhile { it.char == ' ' }
+            trimmedLine.forEach { cell ->
+                val start = builder.length
+                builder.append(cell.char)
+                builder.setSpan(
+                    ForegroundColorSpan(cell.style.foregroundColor),
+                    start,
+                    builder.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                if (cell.style.textStyle != NORMAL_TEXT_STYLE) {
+                    builder.setSpan(
+                        StyleSpan(cell.style.textStyle),
+                        start,
+                        builder.length,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+            }
+            if (rowIndex < lastVisibleLine) {
+                builder.append('\n')
+            }
+        }
+        return builder
+    }
+
+    private fun render(): String {
+        var lastVisibleLine = lines.indexOfLast { line -> line.any { it.char != ' ' } }
+        if (lastVisibleLine < cursorRow) {
+            lastVisibleLine = cursorRow
+        }
+        if (lastVisibleLine < 0) {
+            return ""
+        }
+        return lines.take(lastVisibleLine + 1).joinToString("\n") { line ->
+            line.dropLastWhile { it.char == ' ' }.joinToString("") { it.char.toString() }
+        }
     }
 
     private fun consumeEscape(text: String, start: Int): Int {
@@ -192,6 +238,7 @@ class TerminalScreenBuffer(
 
         val params = parseCsiParameters(body)
         when (finalChar) {
+            'm' -> applySgrParameters(params)
             'A' -> cursorRow = (cursorRow - param(params, 0, 1)).coerceAtLeast(0)
             'B' -> {
                 cursorRow += param(params, 0, 1)
@@ -272,22 +319,137 @@ class TerminalScreenBuffer(
         val line = lines[cursorRow]
         when (mode) {
             0 -> {
-                if (cursorColumn < line.length) {
-                    line.delete(cursorColumn, line.length)
+                if (cursorColumn < line.size) {
+                    line.subList(cursorColumn, line.size).clear()
                 }
             }
             1 -> {
-                val end = (cursorColumn + 1).coerceAtMost(line.length)
+                val end = (cursorColumn + 1).coerceAtMost(line.size)
                 for (index in 0 until end) {
-                    line.setCharAt(index, ' ')
+                    line[index] = Cell(' ', currentStyle)
                 }
             }
             2 -> line.clear()
         }
     }
 
+    private fun applySgrParameters(parameters: List<Int?>) {
+        val normalized = if (parameters.isEmpty()) listOf(0) else parameters.map { it ?: 0 }
+        var index = 0
+        while (index < normalized.size) {
+            when (val parameter = normalized[index]) {
+                0 -> currentStyle = CellStyle()
+                1 -> currentStyle = currentStyle.copy(textStyle = BOLD_TEXT_STYLE)
+                22 -> currentStyle = currentStyle.copy(textStyle = NORMAL_TEXT_STYLE)
+                30, 31, 32, 33, 34, 35, 36, 37 -> {
+                    currentStyle = currentStyle.copy(foregroundColor = ANSI_COLORS[parameter - 30])
+                }
+                39 -> currentStyle = currentStyle.copy(foregroundColor = DEFAULT_TEXT_COLOR)
+                90, 91, 92, 93, 94, 95, 96, 97 -> {
+                    currentStyle = currentStyle.copy(foregroundColor = BRIGHT_ANSI_COLORS[parameter - 90])
+                }
+                38 -> {
+                    val consumed = applyExtendedForegroundColor(normalized, index)
+                    if (consumed > index) {
+                        index = consumed
+                    }
+                }
+            }
+            index++
+        }
+    }
+
+    private fun applyExtendedForegroundColor(parameters: List<Int>, start: Int): Int {
+        if (start + 2 >= parameters.size) {
+            return start
+        }
+
+        return when (parameters[start + 1]) {
+            5 -> {
+                currentStyle = currentStyle.copy(foregroundColor = colorFrom256Palette(parameters[start + 2]))
+                start + 2
+            }
+            2 -> {
+                if (start + 4 >= parameters.size) {
+                    start
+                } else {
+                    currentStyle = currentStyle.copy(
+                        foregroundColor = rgb(
+                            parameters[start + 2],
+                            parameters[start + 3],
+                            parameters[start + 4]
+                        )
+                    )
+                    start + 4
+                }
+            }
+            else -> start
+        }
+    }
+
+    private fun colorFrom256Palette(color: Int): Int {
+        val normalized = color.coerceIn(0, 255)
+        if (normalized < 8) {
+            return ANSI_COLORS[normalized]
+        }
+        if (normalized < 16) {
+            return BRIGHT_ANSI_COLORS[normalized - 8]
+        }
+        if (normalized >= 232) {
+            val level = 8 + (normalized - 232) * 10
+            return rgb(level, level, level)
+        }
+
+        val colorIndex = normalized - 16
+        val red = COLOR_CUBE_LEVELS[colorIndex / 36]
+        val green = COLOR_CUBE_LEVELS[(colorIndex / 6) % 6]
+        val blue = COLOR_CUBE_LEVELS[colorIndex % 6]
+        return rgb(red, green, blue)
+    }
+
+    private data class Cell(
+        val char: Char,
+        val style: CellStyle
+    )
+
+    private data class CellStyle(
+        val foregroundColor: Int = DEFAULT_TEXT_COLOR,
+        val textStyle: Int = NORMAL_TEXT_STYLE
+    )
+
     companion object {
         private const val ESCAPE = '\u001B'
         private const val TAB_WIDTH = 4
+        private const val NORMAL_TEXT_STYLE = 0
+        private const val BOLD_TEXT_STYLE = 1
+        private val DEFAULT_TEXT_COLOR = rgb(183, 247, 200)
+        private val ANSI_COLORS = intArrayOf(
+            rgb(75, 85, 99),
+            rgb(248, 113, 113),
+            rgb(74, 222, 128),
+            rgb(250, 204, 21),
+            rgb(96, 165, 250),
+            rgb(232, 121, 249),
+            rgb(34, 211, 238),
+            rgb(229, 231, 235)
+        )
+        private val BRIGHT_ANSI_COLORS = intArrayOf(
+            rgb(156, 163, 175),
+            rgb(252, 165, 165),
+            rgb(134, 239, 172),
+            rgb(253, 224, 71),
+            rgb(147, 197, 253),
+            rgb(240, 171, 252),
+            rgb(103, 232, 249),
+            rgb(249, 250, 251)
+        )
+        private val COLOR_CUBE_LEVELS = intArrayOf(0, 95, 135, 175, 215, 255)
+
+        private fun rgb(red: Int, green: Int, blue: Int): Int {
+            return 0xFF000000.toInt() or
+                (red.coerceIn(0, 255) shl 16) or
+                (green.coerceIn(0, 255) shl 8) or
+                blue.coerceIn(0, 255)
+        }
     }
 }

@@ -46,4 +46,20 @@ class TerminalScreenBufferTest {
 
         assertEquals("abcX", buffer.append("abc\u001B7de\u001B8X\u001B[K"))
     }
+
+    @Test
+    fun stripsForegroundColorSequencesFromPlainText() {
+        val buffer = TerminalScreenBuffer()
+        val output = buffer.append("\u001B[31mred\u001B[0m normal")
+
+        assertEquals("red normal", output)
+    }
+
+    @Test
+    fun stripsBoldSequencesFromPlainText() {
+        val buffer = TerminalScreenBuffer()
+        val output = buffer.append("\u001B[1mbold\u001B[22m normal")
+
+        assertEquals("bold normal", output)
+    }
 }
