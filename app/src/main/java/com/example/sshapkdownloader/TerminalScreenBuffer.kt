@@ -68,9 +68,15 @@ class TerminalScreenBuffer(
         return rowText(emulator.cursorRow)
     }
 
+    fun currentCursorColumn(): Int {
+        return emulator.cursorCol
+    }
+
     fun currentLineTextAfterColumn(column: Int): String {
         val line = currentLineText()
-        return line.drop(column.coerceIn(0, line.length)).trimEnd()
+        return line.drop(column.coerceIn(0, line.length))
+            .removePrefix(" ")
+            .trimEnd()
     }
 
     private fun renderPlainText(): String {

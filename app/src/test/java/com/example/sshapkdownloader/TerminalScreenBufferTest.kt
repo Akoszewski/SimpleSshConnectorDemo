@@ -82,6 +82,24 @@ class TerminalScreenBufferTest {
     }
 
     @Test
+    fun skipsPromptSeparatorWhenColumnEndsBeforeSpace() {
+        val buffer = TerminalScreenBuffer()
+
+        buffer.append("prompt> command")
+
+        assertEquals("command", buffer.currentLineTextAfterColumn("prompt>".length))
+    }
+
+    @Test
+    fun returnsCursorColumnIncludingTrailingPromptSpace() {
+        val buffer = TerminalScreenBuffer()
+
+        buffer.append("prompt> ")
+
+        assertEquals("prompt>".length + 1, buffer.currentCursorColumn())
+    }
+
+    @Test
     fun rendersScrollbackRowsBeforeVisibleScreen() {
         val buffer = TerminalScreenBuffer(columns = 20, rows = 3, scrollbackRows = 10)
 

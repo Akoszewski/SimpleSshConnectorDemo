@@ -177,7 +177,7 @@ object TerminalSessionManager {
     }
 
     fun currentInputPromptColumn(): Int {
-        return terminalScreenBuffer.currentLineText().length
+        return terminalScreenBuffer.currentCursorColumn()
     }
 
     fun currentInputAfterPromptColumn(promptColumn: Int): String {
