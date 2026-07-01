@@ -53,7 +53,7 @@ class TerminalScreenBuffer(
 
     fun renderStyled(): CharSequence {
         val builder = SpannableStringBuilder()
-        visibleRows().forEachIndexed { index, (row, text) ->
+        visibleRows(maxRows = DEFAULT_RENDERED_ROWS).forEachIndexed { index, (row, text) ->
             if (index > 0) {
                 builder.append('\n')
             }
@@ -83,10 +83,17 @@ class TerminalScreenBuffer(
         return visibleRows().joinToString("\n") { it.second }
     }
 
-    private fun visibleRows(): List<Pair<Int, String>> {
+    private fun visibleRows(maxRows: Int = Int.MAX_VALUE): List<Pair<Int, String>> {
         val screen = emulator.screen
         val rows = mutableListOf<Pair<Int, String>>()
-        for (row in -screen.activeTranscriptRows until emulator.mRows) {
+        val firstRow = -screen.activeTranscriptRows
+        val rowCount = screen.activeTranscriptRows + emulator.mRows
+        val startRow = if (rowCount > maxRows) {
+            firstRow + rowCount - maxRows
+        } else {
+            firstRow
+        }
+        for (row in startRow until emulator.mRows) {
             val text = rowText(row)
             if (text.isNotEmpty() || row in 0..emulator.cursorRow) {
                 rows.add(row to text)
@@ -110,34 +117,60 @@ class TerminalScreenBuffer(
         val screen = emulator.screen
         val colors = emulator.mColors.mCurrentColors
 
-        text.forEachIndexed { column, _ ->
-            val style = screen.getStyleAt(row, column)
-            val start = rowStart + column
-            val end = start + 1
-            val foreground = resolveColor(TextStyle.decodeForeColor(style), colors)
-            val background = resolveColor(TextStyle.decodeBackColor(style), colors)
-            val effects = TextStyle.decodeEffect(style)
+        var runStart = 0
+        var previousStyle: Long? = null
+        for (column in 0..text.length) {
+            val style = if (column < text.length) {
+                screen.getStyleAt(row, column)
+            } else {
+                null
+            }
+            if (style == previousStyle) {
+                continue
+            }
+            previousStyle?.let { completedStyle ->
+                applyStyleRun(builder, rowStart + runStart, rowStart + column, completedStyle, colors)
+            }
+            runStart = column
+            previousStyle = style
+        }
+    }
 
-            builder.setSpan(
-                ForegroundColorSpan(foreground),
-                start,
-                end,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+    private fun applyStyleRun(
+        builder: SpannableStringBuilder,
+        start: Int,
+        end: Int,
+        style: Long,
+        colors: IntArray
+    ) {
+        if (start >= end) {
+            return
+        }
+        val foreground = resolveColor(TextStyle.decodeForeColor(style), colors)
+        val background = resolveColor(TextStyle.decodeBackColor(style), colors)
+        val effects = TextStyle.decodeEffect(style)
+
+        builder.setSpan(
+            ForegroundColorSpan(foreground),
+            start,
+            end,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        if (background != DEFAULT_BACKGROUND_COLOR) {
             builder.setSpan(
                 BackgroundColorSpan(background),
                 start,
                 end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
-            if (effects and TextStyle.CHARACTER_ATTRIBUTE_BOLD != 0) {
-                builder.setSpan(
-                    StyleSpan(Typeface.BOLD),
-                    start,
-                    end,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }
+        }
+        if (effects and TextStyle.CHARACTER_ATTRIBUTE_BOLD != 0) {
+            builder.setSpan(
+                StyleSpan(Typeface.BOLD),
+                start,
+                end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         }
     }
 
@@ -167,6 +200,8 @@ class TerminalScreenBuffer(
     companion object {
         const val DEFAULT_COLUMNS = 120
         const val DEFAULT_ROWS = 40
-        const val DEFAULT_SCROLLBACK_ROWS = 10_000
+        const val DEFAULT_SCROLLBACK_ROWS = 4_000
+        const val DEFAULT_RENDERED_ROWS = 1_500
+        private const val DEFAULT_BACKGROUND_COLOR = 0xff000000.toInt()
     }
 }

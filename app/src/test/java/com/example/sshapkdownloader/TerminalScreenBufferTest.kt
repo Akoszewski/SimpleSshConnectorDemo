@@ -107,4 +107,5 @@ class TerminalScreenBufferTest {
 
         assertEquals("one\ntwo\nthree\nfour\nfive", output)
     }
+
 }
