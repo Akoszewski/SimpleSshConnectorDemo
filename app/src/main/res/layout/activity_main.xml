@@ -47,6 +47,15 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/apkBinaryHashTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/apk_binary_hash_loading"
+            android:textColor="@color/text_muted"
+            android:textSize="14sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

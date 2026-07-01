@@ -28,6 +28,7 @@ import com.jcraft.jsch.Session
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.OutputStream
+import java.security.MessageDigest
 
 class MainActivity : Activity() {
     private val preferences by lazy {
@@ -35,6 +36,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var ipAddressEditText: EditText
+    private lateinit var apkBinaryHashTextView: TextView
     private lateinit var apkListContainer: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +45,7 @@ class MainActivity : Activity() {
         requestNotificationPermission()
         setContentView(R.layout.activity_main)
         ipAddressEditText = findViewById(R.id.ipAddressEditText)
+        apkBinaryHashTextView = findViewById(R.id.apkBinaryHashTextView)
         apkListContainer = findViewById(R.id.apkListContainer)
         findViewById<Button>(R.id.terminalButton).setOnClickListener {
             openTerminal()
@@ -54,6 +57,7 @@ class MainActivity : Activity() {
             connectAndLoadApks()
         }
         restoreSavedValues()
+        displayApkBinaryHash()
     }
 
     override fun onPause() {
@@ -169,6 +173,36 @@ class MainActivity : Activity() {
                     downloadApk(apkName)
                 }
             })
+        }
+    }
+
+    private fun displayApkBinaryHash() {
+        Thread {
+            val text = runCatching {
+                getString(R.string.apk_binary_hash, installedApkSha256())
+            }.getOrElse { error ->
+                getString(R.string.apk_binary_hash_error, error.displayMessage())
+            }
+            runOnUiThread {
+                apkBinaryHashTextView.text = text
+            }
+        }.start()
+    }
+
+    private fun installedApkSha256(): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        File(applicationInfo.sourceDir).inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val bytesRead = input.read(buffer)
+                if (bytesRead == -1) {
+                    break
+                }
+                digest.update(buffer, 0, bytesRead)
+            }
+        }
+        return digest.digest().joinToString(separator = "") { byte ->
+            "%02x".format(byte)
         }
     }
 
