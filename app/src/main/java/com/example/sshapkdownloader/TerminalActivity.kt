@@ -32,6 +32,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     private lateinit var copyCommandButton: ImageButton
     private lateinit var autocompleteButton: ImageButton
     private lateinit var previousCommandButton: ImageButton
+    private lateinit var nextCommandButton: ImageButton
     private lateinit var exitButton: Button
     private var remoteInputPrimed = false
     private var remoteInputPromptColumn: Int? = null
@@ -47,6 +48,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         copyCommandButton = findViewById(R.id.copyCommandButton)
         autocompleteButton = findViewById(R.id.autocompleteButton)
         previousCommandButton = findViewById(R.id.previousCommandButton)
+        nextCommandButton = findViewById(R.id.nextCommandButton)
         exitButton = findViewById(R.id.exitButton)
         keepCommandInputAboveKeyboard(findViewById(R.id.terminalRoot))
         commandEditText.setOnEditorActionListener { _, actionId, _ ->
@@ -74,6 +76,9 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         previousCommandButton.setOnClickListener {
             sendInputEditingKey(UP_ARROW_KEY_BYTES)
         }
+        nextCommandButton.setOnClickListener {
+            sendInputEditingKey(DOWN_ARROW_KEY_BYTES)
+        }
         TerminalSessionManager.attachListener(this)
         connectShell()
     }
@@ -98,6 +103,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         exitButton.isEnabled = enabled
         autocompleteButton.isEnabled = enabled
         previousCommandButton.isEnabled = enabled
+        nextCommandButton.isEnabled = enabled
         if (enabled) {
             focusCommandInput()
         }
@@ -110,6 +116,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         exitButton.isEnabled = false
         autocompleteButton.isEnabled = false
         previousCommandButton.isEnabled = false
+        nextCommandButton.isEnabled = false
     }
 
     override fun onTerminalConnectionUnavailable() {
@@ -169,6 +176,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         exitButton.isEnabled = false
         autocompleteButton.isEnabled = false
         previousCommandButton.isEnabled = false
+        nextCommandButton.isEnabled = false
         TerminalSessionManager.connect(this, address, privateKey)
     }
 
@@ -272,6 +280,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         val CONTROL_C_BYTES = byteArrayOf(0x03)
         val TAB_KEY_BYTES = byteArrayOf(0x09)
         val UP_ARROW_KEY_BYTES = "\u001B[A".toByteArray(Charsets.UTF_8)
+        val DOWN_ARROW_KEY_BYTES = "\u001B[B".toByteArray(Charsets.UTF_8)
         const val INPUT_EDIT_SYNC_DELAY_MS = 150L
         const val INPUT_EDIT_SYNC_MAX_ATTEMPTS = 6
         const val OUTPUT_SCROLL_BOTTOM_TOLERANCE_PX = 24

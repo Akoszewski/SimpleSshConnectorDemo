@@ -11,6 +11,7 @@
     <string name="action_copy_command">Copy command</string>
     <string name="action_autocomplete">Autocomplete command</string>
     <string name="action_previous_command">Previous command</string>
+    <string name="action_next_command">Next command</string>
 
     <string name="hint_ssh_target">user@host:port</string>
     <string name="hint_ssh_public_key">SSH public key</string>

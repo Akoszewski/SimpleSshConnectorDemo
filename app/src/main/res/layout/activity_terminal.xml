@@ -127,5 +127,15 @@
             android:contentDescription="@string/action_previous_command"
             android:padding="12dp"
             android:src="@drawable/ic_arrow_upward_24" />
+
+        <ImageButton
+            android:id="@+id/nextCommandButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="@color/primary"
+            android:contentDescription="@string/action_next_command"
+            android:padding="12dp"
+            android:src="@drawable/ic_arrow_downward_24" />
     </LinearLayout>
 </LinearLayout>
