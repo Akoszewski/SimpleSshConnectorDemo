@@ -54,6 +54,7 @@ Download behavior:
 - Show a Toast when the download completes or fails.
 - Show a notification when the download completes. Tapping the notification should open the downloaded file with an appropriate app.
 - Download files to a location that is easy to find in the phone file manager, so the user can install them manually.
+- Re-downloading a file with the same name should replace the app's previous local copy instead of failing on a duplicate download filename.
 
 Development process:
 

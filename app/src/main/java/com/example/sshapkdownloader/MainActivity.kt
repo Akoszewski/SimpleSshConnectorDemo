@@ -330,10 +330,17 @@ class MainActivity : Activity() {
         try {
             channel.cd(remoteApkPath.toSftpDirectory())
             val destination = openDownloadDestination(apkName)
-            destination.outputStream.use { output ->
-                channel.get(apkName, output)
+            try {
+                destination.outputStream.use { output ->
+                    channel.get(apkName, output)
+                }
+                destination.markComplete()
+            } catch (error: Throwable) {
+                runCatching {
+                    destination.deleteIncomplete()
+                }
+                throw error
             }
-            destination.markComplete()
             return destination.uri
         } finally {
             channel.disconnect()
@@ -355,22 +362,38 @@ class MainActivity : Activity() {
 
     private fun openDownloadDestination(apkName: String): DownloadDestination {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            deleteExistingMediaStoreDownload(apkName)
+
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, apkName)
                 put(MediaStore.Downloads.MIME_TYPE, mimeTypeFor(apkName))
-                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/SshApkDownloader")
+                put(MediaStore.Downloads.RELATIVE_PATH, MEDIASTORE_DOWNLOAD_RELATIVE_PATH)
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
             val uri: Uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: error("Cannot create download file")
-            val outputStream = contentResolver.openOutputStream(uri) ?: error("Cannot open download file")
-
-            DownloadDestination(uri, outputStream) {
-                val completedValues = ContentValues().apply {
-                    put(MediaStore.Downloads.IS_PENDING, 0)
+            val outputStream = try {
+                contentResolver.openOutputStream(uri) ?: error("Cannot open download file")
+            } catch (error: Throwable) {
+                runCatching {
+                    contentResolver.delete(uri, null, null)
                 }
-                contentResolver.update(uri, completedValues, null, null)
+                throw error
             }
+
+            DownloadDestination(
+                uri = uri,
+                outputStream = outputStream,
+                markComplete = {
+                    val completedValues = ContentValues().apply {
+                        put(MediaStore.Downloads.IS_PENDING, 0)
+                    }
+                    contentResolver.update(uri, completedValues, null, null)
+                },
+                deleteIncomplete = {
+                    contentResolver.delete(uri, null, null)
+                }
+            )
         } else {
             val downloadsDir = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
@@ -384,8 +407,24 @@ class MainActivity : Activity() {
                 .authority("$packageName.downloaded-apks")
                 .appendPath(apkName)
                 .build()
-            DownloadDestination(uri, File(downloadsDir, apkName).outputStream()) {}
+            val destinationFile = File(downloadsDir, apkName)
+            DownloadDestination(uri, destinationFile.outputStream(), markComplete = {}, deleteIncomplete = {
+                destinationFile.delete()
+            })
         }
+    }
+
+    private fun deleteExistingMediaStoreDownload(fileName: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return
+        }
+
+        val relativePathWithSlash = "$MEDIASTORE_DOWNLOAD_RELATIVE_PATH/"
+        contentResolver.delete(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            "${MediaStore.Downloads.DISPLAY_NAME} = ? AND (${MediaStore.Downloads.RELATIVE_PATH} = ? OR ${MediaStore.Downloads.RELATIVE_PATH} = ?)",
+            arrayOf(fileName, MEDIASTORE_DOWNLOAD_RELATIVE_PATH, relativePathWithSlash)
+        )
     }
 
     private fun showDownloadedNotification(apkName: String, apkUri: Uri) {
@@ -495,7 +534,8 @@ class MainActivity : Activity() {
     private data class DownloadDestination(
         val uri: Uri,
         val outputStream: OutputStream,
-        val markComplete: () -> Unit
+        val markComplete: () -> Unit,
+        val deleteIncomplete: () -> Unit
     )
 
     companion object {
@@ -503,5 +543,6 @@ class MainActivity : Activity() {
         private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 100
         private const val DEFAULT_REMOTE_APK_PATH = "~/Artifacts/android/"
         private const val DEFAULT_FILE_MIME_TYPE = "application/octet-stream"
+        private val MEDIASTORE_DOWNLOAD_RELATIVE_PATH = "${Environment.DIRECTORY_DOWNLOADS}/SshApkDownloader"
     }
 }
