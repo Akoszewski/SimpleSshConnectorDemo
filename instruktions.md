@@ -27,7 +27,7 @@ Initial UI:
 - If the terminal start folder has a value, the SSH terminal should change to that directory immediately after connecting.
 - In the configuration activity, show an `Upload screenshots to shared folder` checkbox.
 - When this checkbox is enabled, request image read permission if needed and automatically upload newly created screenshot files to the configured shared folder over SFTP.
-- The app should generate its own SSH key instead of asking the user to paste a private key.
+- The app should generate its own Ed25519 SSH key instead of asking the user to paste a private key.
 - In the configuration activity, add a `Generate key` button below the SSH target field.
 - Under `Generate key`, show a text field containing the generated public key for copying.
 - Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.

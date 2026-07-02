@@ -5,6 +5,8 @@ import com.jcraft.jsch.Session
 
 object SshSessionFactory {
     fun create(target: SshTarget, privateKey: String): Session {
+        JschEd25519Support.configure()
+
         val jsch = JSch()
         jsch.addIdentity(
             "ssh-apk-downloader-key",
