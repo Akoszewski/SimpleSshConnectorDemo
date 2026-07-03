@@ -17,6 +17,7 @@ object TerminalSessionManager {
     interface Listener {
         fun onTerminalOutputChanged(output: CharSequence)
         fun onTerminalEnabledChanged(enabled: Boolean)
+        fun onTerminalConnectionLost()
         fun onTerminalDisconnected()
         fun onTerminalConnectionUnavailable()
     }
@@ -184,6 +185,7 @@ object TerminalSessionManager {
             appendOutput = { text -> appendOutput(text) },
             appendOutputBytes = { bytes -> appendOutput(bytes) },
             setTerminalEnabled = { enabled -> setTerminalEnabled(enabled) },
+            notifyConnectionLost = { notifyConnectionLost() },
             notifyConnectionUnavailable = { notifyConnectionUnavailable() },
             notifyDisconnected = { notifyDisconnected() },
             onClosed = { closedConnection ->
@@ -257,6 +259,16 @@ object TerminalSessionManager {
         }
     }
 
+    private fun notifyConnectionLost() {
+        listener?.let { activeListener ->
+            mainHandler.post {
+                if (listener === activeListener) {
+                    activeListener.onTerminalConnectionLost()
+                }
+            }
+        }
+    }
+
     private fun notifyDisconnected() {
         listener?.let { activeListener ->
             mainHandler.post {
@@ -296,6 +308,7 @@ object TerminalSessionManager {
             val appendOutput: (String) -> Unit,
             val appendOutputBytes: (ByteArray) -> Unit,
             val setTerminalEnabled: (Boolean) -> Unit,
+            val notifyConnectionLost: () -> Unit,
             val notifyConnectionUnavailable: () -> Unit,
             val notifyDisconnected: () -> Unit,
             val onClosed: (TerminalConnection) -> Unit
@@ -320,6 +333,9 @@ object TerminalSessionManager {
 
         @Volatile
         private var connecting = false
+
+        @Volatile
+        private var hasConnected = false
 
         @Volatile
         private var keepAliveThread: Thread? = null
@@ -373,6 +389,7 @@ object TerminalSessionManager {
                     connecting = false
                     startKeepAliveLoop(sshSession, currentGeneration)
                     callbacks.appendOutput(request.context.getString(R.string.terminal_connected))
+                    hasConnected = true
                     callbacks.setTerminalEnabled(true)
                     readShellOutput(remoteInput, currentGeneration)
                 }.onFailure { error ->
@@ -543,6 +560,9 @@ object TerminalSessionManager {
             }
 
             val currentGeneration = generation.get()
+            if (hasConnected) {
+                callbacks.notifyConnectionLost()
+            }
             callbacks.appendOutput(contextString(R.string.terminal_reconnecting, TERMINAL_RECONNECT_DELAY_MS / 1000))
             Thread {
                 closeCurrentShell(releaseLocks = false)

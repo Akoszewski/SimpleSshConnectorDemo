@@ -109,6 +109,10 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         }
     }
 
+    override fun onTerminalConnectionLost() {
+        Toast.makeText(this, getString(R.string.message_terminal_connection_lost), Toast.LENGTH_SHORT).show()
+    }
+
     override fun onTerminalDisconnected() {
         setTerminalControlsAvailable(false)
     }
@@ -269,12 +273,22 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         autocompleteButton.isEnabled = canSend
         previousCommandButton.isEnabled = canSend
         nextCommandButton.isEnabled = canSend
+        setSendControlVisualState(canSend)
         if (!canSend) {
             remoteInputPrimed = false
             remoteInputPromptColumn = null
             inputSyncGeneration++
             focusCommandInput()
         }
+    }
+
+    private fun setSendControlVisualState(enabled: Boolean) {
+        val alpha = if (enabled) ENABLED_CONTROL_ALPHA else DISABLED_CONTROL_ALPHA
+        sendButton.alpha = alpha
+        exitButton.alpha = alpha
+        autocompleteButton.alpha = alpha
+        previousCommandButton.alpha = alpha
+        nextCommandButton.alpha = alpha
     }
 
     private fun scrollOutputToBottom() {
@@ -322,5 +336,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         const val INPUT_EDIT_SYNC_MAX_ATTEMPTS = 6
         const val KEYBOARD_CLEARANCE_DP = 12
         const val OUTPUT_SCROLL_BOTTOM_TOLERANCE_PX = 24
+        const val ENABLED_CONTROL_ALPHA = 1.0f
+        const val DISABLED_CONTROL_ALPHA = 0.38f
     }
 }
