@@ -18,6 +18,7 @@ object TerminalSessionManager {
         fun onTerminalOutputChanged(output: CharSequence)
         fun onTerminalEnabledChanged(enabled: Boolean)
         fun onTerminalConnectionLost()
+        fun onTerminalConnectionRecovered()
         fun onTerminalDisconnected()
         fun onTerminalConnectionUnavailable()
     }
@@ -186,6 +187,7 @@ object TerminalSessionManager {
             appendOutputBytes = { bytes -> appendOutput(bytes) },
             setTerminalEnabled = { enabled -> setTerminalEnabled(enabled) },
             notifyConnectionLost = { notifyConnectionLost() },
+            notifyConnectionRecovered = { notifyConnectionRecovered() },
             notifyConnectionUnavailable = { notifyConnectionUnavailable() },
             notifyDisconnected = { notifyDisconnected() },
             onClosed = { closedConnection ->
@@ -269,6 +271,16 @@ object TerminalSessionManager {
         }
     }
 
+    private fun notifyConnectionRecovered() {
+        listener?.let { activeListener ->
+            mainHandler.post {
+                if (listener === activeListener) {
+                    activeListener.onTerminalConnectionRecovered()
+                }
+            }
+        }
+    }
+
     private fun notifyDisconnected() {
         listener?.let { activeListener ->
             mainHandler.post {
@@ -309,6 +321,7 @@ object TerminalSessionManager {
             val appendOutputBytes: (ByteArray) -> Unit,
             val setTerminalEnabled: (Boolean) -> Unit,
             val notifyConnectionLost: () -> Unit,
+            val notifyConnectionRecovered: () -> Unit,
             val notifyConnectionUnavailable: () -> Unit,
             val notifyDisconnected: () -> Unit,
             val onClosed: (TerminalConnection) -> Unit
@@ -317,6 +330,7 @@ object TerminalSessionManager {
         private val writerLock = Any()
         private val closeStarted = AtomicBoolean(false)
         private val reconnectScheduled = AtomicBoolean(false)
+        private val connectionLostNotified = AtomicBoolean(false)
         private val generation = AtomicInteger(0)
 
         @Volatile
@@ -388,8 +402,14 @@ object TerminalSessionManager {
                     changeInitialDirectory(remoteOutput)
                     connecting = false
                     startKeepAliveLoop(sshSession, currentGeneration)
-                    callbacks.appendOutput(request.context.getString(R.string.terminal_connected))
+                    if (hasConnected) {
+                        callbacks.appendOutput(request.context.getString(R.string.terminal_connection_recovered))
+                        callbacks.notifyConnectionRecovered()
+                    } else {
+                        callbacks.appendOutput(request.context.getString(R.string.terminal_connected))
+                    }
                     hasConnected = true
+                    connectionLostNotified.set(false)
                     callbacks.setTerminalEnabled(true)
                     readShellOutput(remoteInput, currentGeneration)
                 }.onFailure { error ->
@@ -560,7 +580,7 @@ object TerminalSessionManager {
             }
 
             val currentGeneration = generation.get()
-            if (hasConnected) {
+            if (hasConnected && connectionLostNotified.compareAndSet(false, true)) {
                 callbacks.notifyConnectionLost()
             }
             callbacks.appendOutput(contextString(R.string.terminal_reconnecting, TERMINAL_RECONNECT_DELAY_MS / 1000))

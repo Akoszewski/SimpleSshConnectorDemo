@@ -55,6 +55,7 @@
     <string name="message_public_key_copied">Public key copied</string>
     <string name="message_terminal_not_connected">Terminal is not connected</string>
     <string name="message_terminal_connection_lost">SSH connection was lost</string>
+    <string name="message_terminal_connection_recovered">SSH connection was recovered</string>
     <string name="message_no_command">No command</string>
     <string name="message_command_copied">Command copied</string>
     <string name="message_image_permission_required">Image permission is required to upload screenshots</string>
@@ -63,6 +64,7 @@
 
     <string name="terminal_connecting">Connecting to %1$s...\n</string>
     <string name="terminal_connected">[connected]\n</string>
+    <string name="terminal_connection_recovered">[connection recovered]\n</string>
     <string name="terminal_disconnected">\n[disconnected]\n</string>
     <string name="terminal_connection_error">\n[connection error: %1$s]\n</string>
     <string name="terminal_reconnecting">\n[connection lost; retrying in %1$d seconds]\n</string>

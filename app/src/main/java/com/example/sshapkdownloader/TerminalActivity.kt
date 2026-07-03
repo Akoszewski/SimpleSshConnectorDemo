@@ -113,6 +113,10 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         Toast.makeText(this, getString(R.string.message_terminal_connection_lost), Toast.LENGTH_SHORT).show()
     }
 
+    override fun onTerminalConnectionRecovered() {
+        Toast.makeText(this, getString(R.string.message_terminal_connection_recovered), Toast.LENGTH_SHORT).show()
+    }
+
     override fun onTerminalDisconnected() {
         setTerminalControlsAvailable(false)
     }
