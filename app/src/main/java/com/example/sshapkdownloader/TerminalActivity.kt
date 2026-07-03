@@ -40,6 +40,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     private var remoteInputPrimed = false
     private var remoteInputPromptColumn: Int? = null
     private var inputSyncGeneration = 0
+    private var shouldFollowTerminalOutput = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +55,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         previousCommandButton = findViewById(R.id.previousCommandButton)
         nextCommandButton = findViewById(R.id.nextCommandButton)
         exitButton = findViewById(R.id.exitButton)
+        trackManualOutputScroll()
         keepCommandInputAboveKeyboard(findViewById(R.id.terminalRoot))
         commandEditText.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -96,9 +98,9 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     }
 
     override fun onTerminalOutputChanged(output: CharSequence) {
-        val wasAtBottom = isOutputScrolledToBottom()
+        val shouldScrollToBottom = shouldFollowTerminalOutput || isOutputScrolledToBottom()
         outputTextView.text = output
-        if (wasAtBottom) {
+        if (shouldScrollToBottom) {
             scrollOutputToBottom()
         }
     }
@@ -173,7 +175,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
                     bottomPadding
                 )
             }
-            if (keyboardVisible) {
+            if (keyboardVisible && shouldFollowTerminalOutput) {
                 scrollOutputToBottom()
             }
         }
@@ -240,6 +242,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         remoteInputPrimed = false
         remoteInputPromptColumn = null
         inputSyncGeneration++
+        shouldFollowTerminalOutput = true
         setTerminalControlsAvailable(false)
         TerminalSessionManager.refresh(this, address, privateKey, terminalStartPath)
     }
@@ -257,6 +260,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         } else {
             TerminalSessionManager.sendCommand(command)
         }
+        shouldFollowTerminalOutput = true
         if (command.isNotBlank()) {
             commandEditText.setText("")
         }
@@ -346,7 +350,14 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
                 val scrollRange = (outputContent.bottom + outputScrollView.paddingBottom - outputScrollView.height)
                     .coerceAtLeast(0)
                 outputScrollView.scrollTo(0, scrollRange)
+                shouldFollowTerminalOutput = true
             }
+        }
+    }
+
+    private fun trackManualOutputScroll() {
+        outputScrollView.viewTreeObserver.addOnScrollChangedListener {
+            shouldFollowTerminalOutput = isOutputScrolledToBottom()
         }
     }
 
