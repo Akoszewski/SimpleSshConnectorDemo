@@ -83,6 +83,7 @@ Terminal behavior:
 - Do not use a text `Send` button in the terminal command bar.
 - Place a second square icon button next to the send button with a copy icon; tapping it copies the current text from the command field at the bottom of the terminal.
 - Sending an empty command sends only Enter.
+- When the SSH connection is unavailable or has been disconnected, keep the command field editable and keep copying possible; controls or keyboard actions that would send bytes to the remote shell should do nothing without clearing the typed text.
 - The terminal provides a compact, narrower `Cancel` button that sends Ctrl-C to the remote shell to leave or interrupt an interactive Codex CLI session.
 - Next to the compact `Cancel` button, provide a square sideways-arrow button that sends Tab to the remote shell for command autocomplete and copies the completed line back into the command field.
 - When syncing autocomplete/history text back into the command field, measure the prompt boundary from the terminal cursor column, not from trimmed line text; prompts commonly end with a space and that separator must not be copied into the command.

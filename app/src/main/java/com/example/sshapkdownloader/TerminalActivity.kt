@@ -34,6 +34,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     private lateinit var previousCommandButton: ImageButton
     private lateinit var nextCommandButton: ImageButton
     private lateinit var exitButton: Button
+    private var terminalCanSend = false
     private var remoteInputPrimed = false
     private var remoteInputPromptColumn: Int? = null
     private var inputSyncGeneration = 0
@@ -97,26 +98,14 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     }
 
     override fun onTerminalEnabledChanged(enabled: Boolean) {
-        commandEditText.isEnabled = enabled
-        sendButton.isEnabled = enabled
-        copyCommandButton.isEnabled = enabled
-        exitButton.isEnabled = enabled
-        autocompleteButton.isEnabled = enabled
-        previousCommandButton.isEnabled = enabled
-        nextCommandButton.isEnabled = enabled
+        setTerminalControlsAvailable(enabled)
         if (enabled) {
             focusCommandInput()
         }
     }
 
     override fun onTerminalDisconnected() {
-        commandEditText.isEnabled = false
-        sendButton.isEnabled = false
-        copyCommandButton.isEnabled = false
-        exitButton.isEnabled = false
-        autocompleteButton.isEnabled = false
-        previousCommandButton.isEnabled = false
-        nextCommandButton.isEnabled = false
+        setTerminalControlsAvailable(false)
     }
 
     override fun onTerminalConnectionUnavailable() {
@@ -177,17 +166,15 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
             return
         }
 
-        commandEditText.isEnabled = false
-        sendButton.isEnabled = false
-        copyCommandButton.isEnabled = false
-        exitButton.isEnabled = false
-        autocompleteButton.isEnabled = false
-        previousCommandButton.isEnabled = false
-        nextCommandButton.isEnabled = false
+        setTerminalControlsAvailable(false)
         TerminalSessionManager.connect(this, address, privateKey, terminalStartPath)
     }
 
     private fun sendCommand() {
+        if (!terminalCanSend) {
+            return
+        }
+
         val command = commandEditText.text.toString()
         if (remoteInputPrimed) {
             TerminalSessionManager.sendPrimedInputCommand(command)
@@ -202,6 +189,10 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     }
 
     private fun sendInputEditingKey(keyBytes: ByteArray) {
+        if (!terminalCanSend) {
+            return
+        }
+
         val command = commandEditText.text.toString()
         val promptColumn = remoteInputPromptColumn ?: TerminalSessionManager.currentInputPromptColumn()
         remoteInputPrimed = true
@@ -245,6 +236,23 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
             remoteInputPromptColumn = promptColumn
             focusCommandInput()
         }, INPUT_EDIT_SYNC_DELAY_MS)
+    }
+
+    private fun setTerminalControlsAvailable(canSend: Boolean) {
+        terminalCanSend = canSend
+        commandEditText.isEnabled = true
+        copyCommandButton.isEnabled = true
+        sendButton.isEnabled = canSend
+        exitButton.isEnabled = canSend
+        autocompleteButton.isEnabled = canSend
+        previousCommandButton.isEnabled = canSend
+        nextCommandButton.isEnabled = canSend
+        if (!canSend) {
+            remoteInputPrimed = false
+            remoteInputPromptColumn = null
+            inputSyncGeneration++
+            focusCommandInput()
+        }
     }
 
     private fun scrollOutputToBottom() {
