@@ -4,6 +4,10 @@ import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 
 object SshSessionFactory {
+    fun create(config: SshServerConfig): Session {
+        return create(config.target, config.privateKey)
+    }
+
     fun create(target: SshTarget, privateKey: String): Session {
         JschEd25519Support.configure()
 

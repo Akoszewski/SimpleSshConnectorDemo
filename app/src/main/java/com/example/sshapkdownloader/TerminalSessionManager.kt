@@ -12,7 +12,7 @@ import java.io.OutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-object TerminalSessionManager {
+class TerminalSessionController {
     interface Listener {
         fun onTerminalOutputChanged(output: CharSequence)
         fun onTerminalEnabledChanged(enabled: Boolean)
@@ -58,8 +58,8 @@ object TerminalSessionManager {
         }
     }
 
-    fun connect(context: Context, address: String, privateKey: String, initialDirectory: String) {
-        val request = ConnectionRequest(context.applicationContext, address, privateKey, initialDirectory)
+    fun connect(context: Context, profile: TerminalConnectionProfile) {
+        val request = ConnectionRequest(context.applicationContext, profile)
         val activeConnection = connection
         if (activeConnection?.isRunning() == true) {
             notifyOutputChanged()
@@ -93,8 +93,8 @@ object TerminalSessionManager {
         )
     }
 
-    fun refresh(context: Context, address: String, privateKey: String, initialDirectory: String) {
-        val request = ConnectionRequest(context.applicationContext, address, privateKey, initialDirectory)
+    fun refresh(context: Context, profile: TerminalConnectionProfile) {
+        val request = ConnectionRequest(context.applicationContext, profile)
         val previousConnection = connection
         connection = null
         setTerminalEnabled(false)
@@ -240,61 +240,47 @@ object TerminalSessionManager {
 
     private fun notifyOutputChanged() {
         val output = terminalScreenBuffer.renderStyled()
-        listener?.let { activeListener ->
-            mainHandler.post {
-                if (listener === activeListener) {
-                    activeListener.onTerminalOutputChanged(output)
-                }
-            }
+        notifyListener { activeListener ->
+            activeListener.onTerminalOutputChanged(output)
         }
     }
 
     private fun notifyTerminalEnabled() {
         val enabled = terminalEnabled
-        listener?.let { activeListener ->
-            mainHandler.post {
-                if (listener === activeListener) {
-                    activeListener.onTerminalEnabledChanged(enabled)
-                }
-            }
+        notifyListener { activeListener ->
+            activeListener.onTerminalEnabledChanged(enabled)
         }
     }
 
     private fun notifyConnectionLost() {
-        listener?.let { activeListener ->
-            mainHandler.post {
-                if (listener === activeListener) {
-                    activeListener.onTerminalConnectionLost()
-                }
-            }
+        notifyListener { activeListener ->
+            activeListener.onTerminalConnectionLost()
         }
     }
 
     private fun notifyConnectionRecovered() {
-        listener?.let { activeListener ->
-            mainHandler.post {
-                if (listener === activeListener) {
-                    activeListener.onTerminalConnectionRecovered()
-                }
-            }
+        notifyListener { activeListener ->
+            activeListener.onTerminalConnectionRecovered()
         }
     }
 
     private fun notifyDisconnected() {
-        listener?.let { activeListener ->
-            mainHandler.post {
-                if (listener === activeListener) {
-                    activeListener.onTerminalDisconnected()
-                }
-            }
+        notifyListener { activeListener ->
+            activeListener.onTerminalDisconnected()
         }
     }
 
     private fun notifyConnectionUnavailable() {
+        notifyListener { activeListener ->
+            activeListener.onTerminalConnectionUnavailable()
+        }
+    }
+
+    private fun notifyListener(event: (Listener) -> Unit) {
         listener?.let { activeListener ->
             mainHandler.post {
                 if (listener === activeListener) {
-                    activeListener.onTerminalConnectionUnavailable()
+                    event(activeListener)
                 }
             }
         }
@@ -306,9 +292,7 @@ object TerminalSessionManager {
 
     private data class ConnectionRequest(
         val context: Context,
-        val address: String,
-        val privateKey: String,
-        val initialDirectory: String
+        val profile: TerminalConnectionProfile
     )
 
     private class TerminalConnection(
@@ -361,7 +345,12 @@ object TerminalSessionManager {
             }
 
             callbacks.setTerminalEnabled(false)
-            callbacks.appendOutput(request.context.getString(R.string.terminal_connecting, request.address))
+            callbacks.appendOutput(
+                request.context.getString(
+                    R.string.terminal_connecting,
+                    request.profile.serverConfig.address
+                )
+            )
             reconnectScheduled.set(false)
             connecting = true
             closeStarted.set(false)
@@ -371,10 +360,7 @@ object TerminalSessionManager {
 
             Thread {
                 runCatching {
-                    val sshSession = SshSessionFactory.create(
-                        SshTargetParser.parse(request.address),
-                        request.privateKey
-                    )
+                    val sshSession = SshSessionFactory.create(request.profile.serverConfig)
                     session = sshSession
                     sshSession.connect(15_000)
                     if (!isCurrent(currentGeneration)) {
@@ -560,7 +546,7 @@ object TerminalSessionManager {
         }
 
         private fun changeInitialDirectory(output: OutputStream) {
-            val directory = request.initialDirectory.trim()
+            val directory = request.profile.initialDirectory.trim()
             if (directory.isBlank()) {
                 return
             }
@@ -665,17 +651,71 @@ object TerminalSessionManager {
         }
     }
 
-    private fun Throwable.displayMessage(): String {
-        return message ?: javaClass.simpleName
+    private companion object {
+        const val TERMINAL_COLUMNS = TerminalScreenBuffer.DEFAULT_COLUMNS
+        const val TERMINAL_ROWS = TerminalScreenBuffer.DEFAULT_ROWS
+        const val ENTER_KEY = "\r"
+        const val ENTER_KEY_DELAY_MS = 60L
+        const val TERMINAL_RENDER_DELAY_MS = 50L
+        const val TERMINAL_KEEP_ALIVE_INTERVAL_MS = 10_000L
+        const val TERMINAL_RECONNECT_DELAY_MS = 5_000L
+        val ENTER_KEY_BYTES = ENTER_KEY.toByteArray(Charsets.UTF_8)
+        val CONTROL_U_BYTES = byteArrayOf(0x15)
+    }
+}
+
+object TerminalSessionManager {
+    private val defaultController = TerminalSessionController()
+
+    fun attachListener(listener: TerminalSessionController.Listener) {
+        defaultController.attachListener(listener)
     }
 
-    private const val TERMINAL_COLUMNS = TerminalScreenBuffer.DEFAULT_COLUMNS
-    private const val TERMINAL_ROWS = TerminalScreenBuffer.DEFAULT_ROWS
-    private const val ENTER_KEY = "\r"
-    private const val ENTER_KEY_DELAY_MS = 60L
-    private const val TERMINAL_RENDER_DELAY_MS = 50L
-    private const val TERMINAL_KEEP_ALIVE_INTERVAL_MS = 10_000L
-    private const val TERMINAL_RECONNECT_DELAY_MS = 5_000L
-    private val ENTER_KEY_BYTES = ENTER_KEY.toByteArray(Charsets.UTF_8)
-    private val CONTROL_U_BYTES = byteArrayOf(0x15)
+    fun detachListener(listener: TerminalSessionController.Listener) {
+        defaultController.detachListener(listener)
+    }
+
+    fun connect(context: Context, profile: TerminalConnectionProfile) {
+        defaultController.connect(context, profile)
+    }
+
+    fun disconnectByUser() {
+        defaultController.disconnectByUser()
+    }
+
+    fun disconnectBecauseTaskRemoved() {
+        defaultController.disconnectBecauseTaskRemoved()
+    }
+
+    fun refresh(context: Context, profile: TerminalConnectionProfile) {
+        defaultController.refresh(context, profile)
+    }
+
+    fun sendCommand(command: String) {
+        defaultController.sendCommand(command)
+    }
+
+    fun sendBytes(bytes: ByteArray) {
+        defaultController.sendBytes(bytes)
+    }
+
+    fun sendInputEditingKey(currentInput: String, keyBytes: ByteArray) {
+        defaultController.sendInputEditingKey(currentInput, keyBytes)
+    }
+
+    fun sendPrimedInputCommand(command: String) {
+        defaultController.sendPrimedInputCommand(command)
+    }
+
+    fun currentInputPromptColumn(): Int {
+        return defaultController.currentInputPromptColumn()
+    }
+
+    fun currentInputAfterPromptColumn(promptColumn: Int): String {
+        return defaultController.currentInputAfterPromptColumn(promptColumn)
+    }
+
+    fun clearOutput() {
+        defaultController.clearOutput()
+    }
 }

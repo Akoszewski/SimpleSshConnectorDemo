@@ -8,18 +8,10 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.widget.Toast
-import com.jcraft.jsch.ChannelSftp
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 object ScreenshotUploadManager {
-    private const val PREFERENCES_NAME = "ssh_apk_downloader"
-    private const val KEY_IP_ADDRESS = "ip_address"
-    private const val KEY_PRIVATE_SSH_KEY = "private_ssh_key"
-    private const val KEY_REMOTE_APK_PATH = "remote_apk_path"
-    private const val KEY_UPLOAD_SCREENSHOTS = "upload_screenshots_to_shared_folder"
-    private const val KEY_LAST_UPLOADED_SCREENSHOT_ID = "last_uploaded_screenshot_id"
-    private const val DEFAULT_REMOTE_APK_PATH = "~/Artifacts/android/"
     private const val RECENT_SCREENSHOT_GRACE_SECONDS = 5L
 
     private var observer: ContentObserver? = null
@@ -28,8 +20,8 @@ object ScreenshotUploadManager {
 
     fun start(context: Context) {
         val appContext = context.applicationContext
-        val preferences = appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-        if (!preferences.getBoolean(KEY_UPLOAD_SCREENSHOTS, false) || !appContext.canReadImages()) {
+        val preferences = AppPreferences.from(appContext)
+        if (!preferences.uploadScreenshotsToSharedFolder || !appContext.canReadImages()) {
             stop(appContext)
             return
         }
@@ -83,8 +75,8 @@ object ScreenshotUploadManager {
     }
 
     private fun findNewestScreenshot(context: Context): ScreenshotFile? {
-        val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-        val lastUploadedId = preferences.getLong(KEY_LAST_UPLOADED_SCREENSHOT_ID, -1L)
+        val preferences = AppPreferences.from(context)
+        val lastUploadedId = preferences.lastUploadedScreenshotId
         val pathColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Images.Media.RELATIVE_PATH
         } else {
@@ -127,37 +119,21 @@ object ScreenshotUploadManager {
     }
 
     private fun uploadScreenshot(context: Context, screenshot: ScreenshotFile) {
-        val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-        val address = preferences.getString(KEY_IP_ADDRESS, "")?.trim().orEmpty()
-        val privateKey = preferences.getString(KEY_PRIVATE_SSH_KEY, "").orEmpty()
-        val sharedFolder = preferences.getString(KEY_REMOTE_APK_PATH, DEFAULT_REMOTE_APK_PATH)?.trim().orEmpty()
-        if (address.isBlank() || privateKey.isBlank() || sharedFolder.isBlank()) {
+        val preferences = AppPreferences.from(context)
+        val serverConfig = preferences.serverConfig()
+        if (!serverConfig.hasRemoteFileConnectionInfo()) {
             error(context.getString(R.string.message_ssh_target_key_and_path_required))
         }
 
         context.contentResolver.openInputStream(screenshot.uri)?.use { input ->
-            val session = SshSessionFactory.create(SshTargetParser.parse(address), privateKey)
-            try {
-                session.connect(15_000)
-                val channel = session.openChannel("sftp") as ChannelSftp
-                channel.connect(15_000)
-                try {
-                    channel.cd(sharedFolder.toSftpDirectory())
-                    channel.put(input, screenshot.displayName)
-                } finally {
-                    channel.disconnect()
-                }
-            } finally {
-                session.disconnect()
+            SshRemoteFileSession.connect(serverConfig).use { remoteFiles ->
+                remoteFiles.uploadFile(input, screenshot.displayName, validateFileName = false)
             }
         } ?: error("Cannot open screenshot")
     }
 
     private fun rememberUploadedScreenshot(context: Context, id: Long) {
-        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putLong(KEY_LAST_UPLOADED_SCREENSHOT_ID, id)
-            .apply()
+        AppPreferences.from(context).lastUploadedScreenshotId = id
     }
 
     private fun isScreenshot(displayName: String, relativePath: String): Boolean {
@@ -169,10 +145,6 @@ object ScreenshotUploadManager {
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(context.applicationContext, message, Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun Throwable.displayMessage(): String {
-        return message ?: javaClass.simpleName
     }
 
     private data class ScreenshotFile(

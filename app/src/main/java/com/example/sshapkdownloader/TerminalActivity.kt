@@ -19,12 +19,11 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
 
-class TerminalActivity : Activity(), TerminalSessionManager.Listener {
+class TerminalActivity : Activity(), TerminalSessionController.Listener {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val preferences by lazy {
-        getSharedPreferences("ssh_apk_downloader", Context.MODE_PRIVATE)
+        AppPreferences.from(this)
     }
 
     private lateinit var outputTextView: TextView
@@ -119,11 +118,11 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     }
 
     override fun onTerminalConnectionLost() {
-        Toast.makeText(this, getString(R.string.message_terminal_connection_lost), Toast.LENGTH_SHORT).show()
+        showShortToast(getString(R.string.message_terminal_connection_lost))
     }
 
     override fun onTerminalConnectionRecovered() {
-        Toast.makeText(this, getString(R.string.message_terminal_connection_recovered), Toast.LENGTH_SHORT).show()
+        showShortToast(getString(R.string.message_terminal_connection_recovered))
     }
 
     override fun onTerminalDisconnected() {
@@ -131,7 +130,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     }
 
     override fun onTerminalConnectionUnavailable() {
-        Toast.makeText(this, getString(R.string.message_terminal_not_connected), Toast.LENGTH_SHORT).show()
+        showShortToast(getString(R.string.message_terminal_not_connected))
     }
 
     private fun keepCommandInputAboveKeyboard(rootView: View) {
@@ -221,27 +220,21 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun connectShell() {
-        val address = preferences.getString("ip_address", "")?.trim().orEmpty()
-        val privateKey = preferences.getString("private_ssh_key", "").orEmpty()
-        val terminalStartPath = preferences.getString("terminal_start_path", "")?.trim().orEmpty()
-
-        if (address.isBlank() || privateKey.isBlank()) {
-            Toast.makeText(this, getString(R.string.message_ssh_target_and_key_required), Toast.LENGTH_SHORT).show()
+        val serverConfig = preferences.serverConfig()
+        if (!serverConfig.hasTerminalConnectionInfo()) {
+            showShortToast(getString(R.string.message_ssh_target_and_key_required))
             finish()
             return
         }
 
         setTerminalControlsAvailable(false)
-        TerminalSessionManager.connect(this, address, privateKey, terminalStartPath)
+        TerminalSessionManager.connect(this, serverConfig.terminalProfile())
     }
 
     private fun refreshTerminal() {
-        val address = preferences.getString("ip_address", "")?.trim().orEmpty()
-        val privateKey = preferences.getString("private_ssh_key", "").orEmpty()
-        val terminalStartPath = preferences.getString("terminal_start_path", "")?.trim().orEmpty()
-
-        if (address.isBlank() || privateKey.isBlank()) {
-            Toast.makeText(this, getString(R.string.message_ssh_target_and_key_required), Toast.LENGTH_SHORT).show()
+        val serverConfig = preferences.serverConfig()
+        if (!serverConfig.hasTerminalConnectionInfo()) {
+            showShortToast(getString(R.string.message_ssh_target_and_key_required))
             return
         }
 
@@ -250,7 +243,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         inputSyncGeneration++
         shouldFollowTerminalOutput = true
         setTerminalControlsAvailable(false)
-        TerminalSessionManager.refresh(this, address, privateKey, terminalStartPath)
+        TerminalSessionManager.refresh(this, serverConfig.terminalProfile())
     }
 
     private fun sendCommand() {
@@ -404,13 +397,13 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     private fun copyCommand() {
         val command = commandEditText.text.toString()
         if (command.isBlank()) {
-            Toast.makeText(this, getString(R.string.message_no_command), Toast.LENGTH_SHORT).show()
+            showShortToast(getString(R.string.message_no_command))
             return
         }
 
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.clipboard_terminal_command), command))
-        Toast.makeText(this, getString(R.string.message_command_copied), Toast.LENGTH_SHORT).show()
+        showShortToast(getString(R.string.message_command_copied))
     }
 
     private companion object {

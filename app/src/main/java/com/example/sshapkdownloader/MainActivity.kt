@@ -25,18 +25,13 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
-import com.jcraft.jsch.ChannelExec
-import com.jcraft.jsch.ChannelSftp
-import com.jcraft.jsch.Session
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.OutputStream
 import java.security.MessageDigest
 
 class MainActivity : Activity() {
     private val preferences by lazy {
-        getSharedPreferences("ssh_apk_downloader", Context.MODE_PRIVATE)
+        AppPreferences.from(this)
     }
 
     private lateinit var apkBinaryHashTextView: TextView
@@ -76,7 +71,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        if (preferences.getBoolean("upload_screenshots_to_shared_folder", false) && canReadImages()) {
+        if (preferences.uploadScreenshotsToSharedFolder && canReadImages()) {
             ScreenshotUploadManager.start(this)
         } else {
             ScreenshotUploadManager.stop(this)
@@ -84,74 +79,53 @@ class MainActivity : Activity() {
     }
 
     private fun connectAndLoadApks() {
-        val address = getStoredAddress()
-        val privateKey = getStoredPrivateKey()
-        val remoteApkPath = getStoredRemoteApkPath()
+        runRemoteFileTask(
+            onFailureMessage = { getString(R.string.message_ssh_error, it) },
+            onFailure = { apkListContainer.removeAllViews() },
+            onStart = {
+                apkListContainer.removeAllViews()
+                showShortToast(getString(R.string.message_connecting))
+            }
+        ) { remoteFiles ->
+            val apkNames = remoteFiles.listFiles()
+            runOnUiThread {
+                displayApkButtons(apkNames)
+            }
+        }
+    }
 
-        if (address.isEmpty() || privateKey.isBlank() || remoteApkPath.isBlank()) {
-            showToast(getString(R.string.message_ssh_target_key_and_path_required))
+    private fun runRemoteFileTask(
+        onFailureMessage: (String) -> String,
+        onStart: () -> Unit = {},
+        onFailure: () -> Unit = {},
+        task: (SshRemoteFileSession) -> Unit
+    ) {
+        val serverConfig = preferences.serverConfig()
+        if (!serverConfig.hasRemoteFileConnectionInfo()) {
+            showShortToast(getString(R.string.message_ssh_target_key_and_path_required))
             return
         }
 
-        apkListContainer.removeAllViews()
-        showToast(getString(R.string.message_connecting))
-
+        onStart()
         Thread {
             runCatching {
-                val session = SshSessionFactory.create(SshTargetParser.parse(address), privateKey)
-                try {
-                    session.connect(15_000)
-                    listRemoteFiles(session, remoteApkPath)
-                } finally {
-                    session.disconnect()
-                }
-            }.onSuccess { apkNames ->
-                runOnUiThread {
-                    displayApkButtons(apkNames)
-                }
+                SshRemoteFileSession.connect(serverConfig).use(task)
             }.onFailure { error ->
                 runOnUiThread {
-                    apkListContainer.removeAllViews()
-                    showToast(getString(R.string.message_ssh_error, error.displayMessage()))
+                    onFailure()
+                    showShortToast(onFailureMessage(error.displayMessage()))
                 }
             }
         }.start()
     }
 
-    private fun listRemoteFiles(session: Session, remoteApkPath: String): List<String> {
-        val command = "find ${remoteApkPath.toShellPathExpression()} -maxdepth 1 -type f -printf '%f\\n' | sort"
-        val output = executeRemoteCommand(session, command)
-        return output.lineSequence()
-            .map { it.removeSuffix("\r") }
-            .filter { it.isNotEmpty() }
-            .toList()
-    }
-
-    private fun executeRemoteCommand(session: Session, command: String): String {
-        val channel = session.openChannel("exec") as ChannelExec
-        val output = ByteArrayOutputStream()
-        val errorOutput = ByteArrayOutputStream()
-
-        channel.setCommand(command)
-        channel.outputStream = output
-        channel.setErrStream(errorOutput)
-        channel.connect(15_000)
-
-        while (!channel.isClosed) {
-            Thread.sleep(100)
+    private fun openTerminal() {
+        if (!preferences.serverConfig().hasTerminalConnectionInfo()) {
+            showShortToast(getString(R.string.message_ssh_target_and_key_required))
+            return
         }
 
-        val exitStatus = channel.exitStatus
-        channel.disconnect()
-
-        if (exitStatus != 0) {
-            val message = errorOutput.toString(Charsets.UTF_8.name()).ifBlank {
-                "Remote command failed with exit status $exitStatus"
-            }
-            error(message)
-        }
-
-        return output.toString(Charsets.UTF_8.name())
+        startActivity(Intent(this, TerminalActivity::class.java))
     }
 
     private fun displayApkButtons(apkNames: List<String>) {
@@ -262,69 +236,66 @@ class MainActivity : Activity() {
     }
 
     private fun downloadApk(apkName: String) {
-        val address = getStoredAddress()
-        val privateKey = getStoredPrivateKey()
-        val remoteApkPath = getStoredRemoteApkPath()
-
-        if (address.isEmpty() || privateKey.isBlank() || remoteApkPath.isBlank()) {
-            showToast(getString(R.string.message_ssh_target_key_and_path_required))
-            return
-        }
-
-        showToast(getString(R.string.message_download_started, apkName))
-
-        Thread {
-            runCatching {
-                val session = SshSessionFactory.create(SshTargetParser.parse(address), privateKey)
-                try {
-                    session.connect(15_000)
-                    downloadRemoteApk(session, remoteApkPath, apkName)
-                } finally {
-                    session.disconnect()
-                }
-            }.onSuccess { apkUri ->
-                showToastOnUiThread(getString(R.string.message_download_completed, apkName))
-                showDownloadedNotification(apkName, apkUri)
-                if (shouldInstallDownloadedApk(apkName)) {
-                    openApkInstaller(apkName, apkUri)
-                }
-            }.onFailure { error ->
-                showToastOnUiThread(getString(R.string.message_download_error, error.displayMessage()))
+        runRemoteFileTask(
+            onFailureMessage = { getString(R.string.message_download_error, it) },
+            onStart = { showShortToast(getString(R.string.message_download_started, apkName)) }
+        ) { remoteFiles ->
+            val apkUri = downloadRemoteApk(remoteFiles, apkName)
+            showShortToastOnUiThread(getString(R.string.message_download_completed, apkName))
+            showDownloadedNotification(apkName, apkUri)
+            if (shouldInstallDownloadedApk(apkName)) {
+                openApkInstaller(apkName, apkUri)
             }
-        }.start()
+        }
     }
 
     private fun deleteRemoteListFile(fileName: String) {
-        val address = getStoredAddress()
-        val privateKey = getStoredPrivateKey()
-        val remoteApkPath = getStoredRemoteApkPath()
-
-        if (address.isEmpty() || privateKey.isBlank() || remoteApkPath.isBlank()) {
-            showToast(getString(R.string.message_ssh_target_key_and_path_required))
-            return
-        }
-
-        showToast(getString(R.string.message_delete_started, fileName))
-
-        Thread {
-            runCatching {
-                val session = SshSessionFactory.create(SshTargetParser.parse(address), privateKey)
-                try {
-                    session.connect(15_000)
-                    deleteRemoteFile(session, remoteApkPath, fileName)
-                    listRemoteFiles(session, remoteApkPath)
-                } finally {
-                    session.disconnect()
-                }
-            }.onSuccess { apkNames ->
-                runOnUiThread {
-                    showToast(getString(R.string.message_delete_completed, fileName))
-                    displayApkButtons(apkNames)
-                }
-            }.onFailure { error ->
-                showToastOnUiThread(getString(R.string.message_delete_error, error.displayMessage()))
+        runRemoteFileTask(
+            onFailureMessage = { getString(R.string.message_delete_error, it) },
+            onStart = { showShortToast(getString(R.string.message_delete_started, fileName)) }
+        ) { remoteFiles ->
+            remoteFiles.deleteFile(fileName)
+            val apkNames = remoteFiles.listFiles()
+            runOnUiThread {
+                showShortToast(getString(R.string.message_delete_completed, fileName))
+                displayApkButtons(apkNames)
             }
-        }.start()
+        }
+    }
+
+    private fun uploadSelectedFile(uri: Uri) {
+        val fileName = displayNameFor(uri)
+
+        runRemoteFileTask(
+            onFailureMessage = { getString(R.string.message_upload_error, it) },
+            onStart = { showShortToast(getString(R.string.message_upload_started, fileName)) }
+        ) { remoteFiles ->
+            RemoteFileNameValidator.requireValid(fileName)
+            contentResolver.openInputStream(uri)?.use { input ->
+                remoteFiles.uploadFile(input, fileName)
+            } ?: error("Cannot open selected file")
+            val apkNames = remoteFiles.listFiles()
+            runOnUiThread {
+                showShortToast(getString(R.string.message_upload_completed, fileName))
+                displayApkButtons(apkNames)
+            }
+        }
+    }
+
+    private fun downloadRemoteApk(remoteFiles: SshRemoteFileSession, apkName: String): Uri {
+        val destination = openDownloadDestination(apkName)
+        try {
+            destination.outputStream.use { output ->
+                remoteFiles.downloadFile(apkName, output)
+            }
+            destination.markComplete()
+        } catch (error: Throwable) {
+            runCatching {
+                destination.deleteIncomplete()
+            }
+            throw error
+        }
+        return destination.uri
     }
 
     private fun openUploadFilePicker() {
@@ -336,105 +307,7 @@ class MainActivity : Activity() {
         runCatching {
             startActivityForResult(intent, UPLOAD_FILE_REQUEST_CODE)
         }.onFailure { error ->
-            showToast(getString(R.string.message_file_picker_error, error.displayMessage()))
-        }
-    }
-
-    private fun uploadSelectedFile(uri: Uri) {
-        val address = getStoredAddress()
-        val privateKey = getStoredPrivateKey()
-        val remoteApkPath = getStoredRemoteApkPath()
-        val fileName = displayNameFor(uri)
-
-        if (address.isEmpty() || privateKey.isBlank() || remoteApkPath.isBlank()) {
-            showToast(getString(R.string.message_ssh_target_key_and_path_required))
-            return
-        }
-
-        showToast(getString(R.string.message_upload_started, fileName))
-
-        Thread {
-            runCatching {
-                RemoteFileNameValidator.requireValid(fileName)
-                val session = SshSessionFactory.create(SshTargetParser.parse(address), privateKey)
-                try {
-                    session.connect(15_000)
-                    uploadRemoteFile(session, remoteApkPath, uri, fileName)
-                    listRemoteFiles(session, remoteApkPath)
-                } finally {
-                    session.disconnect()
-                }
-            }.onSuccess { apkNames ->
-                runOnUiThread {
-                    showToast(getString(R.string.message_upload_completed, fileName))
-                    displayApkButtons(apkNames)
-                }
-            }.onFailure { error ->
-                showToastOnUiThread(getString(R.string.message_upload_error, error.displayMessage()))
-            }
-        }.start()
-    }
-
-    private fun openTerminal() {
-        val address = getStoredAddress()
-        val privateKey = getStoredPrivateKey()
-
-        if (address.isEmpty() || privateKey.isBlank()) {
-            showToast(getString(R.string.message_ssh_target_and_key_required))
-            return
-        }
-
-        startActivity(Intent(this, TerminalActivity::class.java))
-    }
-
-    private fun downloadRemoteApk(session: Session, remoteApkPath: String, apkName: String): Uri {
-        RemoteFileNameValidator.requireValid(apkName)
-
-        val channel = session.openChannel("sftp") as ChannelSftp
-        channel.connect(15_000)
-        try {
-            channel.cd(remoteApkPath.toSftpDirectory())
-            val destination = openDownloadDestination(apkName)
-            try {
-                destination.outputStream.use { output ->
-                    channel.get(apkName, output)
-                }
-                destination.markComplete()
-            } catch (error: Throwable) {
-                runCatching {
-                    destination.deleteIncomplete()
-                }
-                throw error
-            }
-            return destination.uri
-        } finally {
-            channel.disconnect()
-        }
-    }
-
-    private fun deleteRemoteFile(session: Session, remoteApkPath: String, fileName: String) {
-        RemoteFileNameValidator.requireValid(fileName)
-
-        val channel = session.openChannel("sftp") as ChannelSftp
-        channel.connect(15_000)
-        try {
-            channel.cd(remoteApkPath.toSftpDirectory())
-            channel.rm(fileName)
-        } finally {
-            channel.disconnect()
-        }
-    }
-
-    private fun uploadRemoteFile(session: Session, remoteApkPath: String, uri: Uri, fileName: String) {
-        val channel = session.openChannel("sftp") as ChannelSftp
-        channel.connect(15_000)
-        try {
-            channel.cd(remoteApkPath.toSftpDirectory())
-            contentResolver.openInputStream(uri)?.use { input ->
-                channel.put(input, fileName)
-            } ?: error("Cannot open selected file")
-        } finally {
-            channel.disconnect()
+            showShortToast(getString(R.string.message_file_picker_error, error.displayMessage()))
         }
     }
 
@@ -556,7 +429,7 @@ class MainActivity : Activity() {
 
     private fun shouldInstallDownloadedApk(apkName: String): Boolean {
         return apkName.endsWith(".apk", ignoreCase = true) &&
-            preferences.getBoolean("install_downloaded_apks", false)
+            preferences.installDownloadedApks
     }
 
     private fun openApkInstaller(apkName: String, apkUri: Uri) {
@@ -569,7 +442,7 @@ class MainActivity : Activity() {
             runCatching {
                 startActivity(installIntent)
             }.onFailure { error ->
-                showToast(getString(R.string.message_install_open_error, error.displayMessage()))
+                showShortToast(getString(R.string.message_install_open_error, error.displayMessage()))
             }
         }
     }
@@ -622,32 +495,6 @@ class MainActivity : Activity() {
         return (value * resources.displayMetrics.density).toInt()
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun getStoredPrivateKey(): String {
-        return preferences.getString("private_ssh_key", "") ?: ""
-    }
-
-    private fun getStoredAddress(): String {
-        return preferences.getString("ip_address", "")?.trim().orEmpty()
-    }
-
-    private fun getStoredRemoteApkPath(): String {
-        return preferences.getString("remote_apk_path", DEFAULT_REMOTE_APK_PATH)?.trim().orEmpty()
-    }
-
-    private fun showToastOnUiThread(message: String) {
-        runOnUiThread {
-            showToast(message)
-        }
-    }
-
-    private fun Throwable.displayMessage(): String {
-        return message ?: javaClass.simpleName
-    }
-
     private data class DownloadDestination(
         val uri: Uri,
         val outputStream: OutputStream,
@@ -659,7 +506,6 @@ class MainActivity : Activity() {
         private const val DOWNLOAD_CHANNEL_ID = "apk_downloads"
         private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 100
         private const val UPLOAD_FILE_REQUEST_CODE = 101
-        private const val DEFAULT_REMOTE_APK_PATH = "~/Artifacts/android/"
         private const val DEFAULT_FILE_MIME_TYPE = "application/octet-stream"
         private val MEDIASTORE_DOWNLOAD_RELATIVE_PATH = "${Environment.DIRECTORY_DOWNLOADS}/SshApkDownloader"
     }
