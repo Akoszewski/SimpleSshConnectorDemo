@@ -80,7 +80,14 @@ class MainActivity : Activity() {
     }
 
     private fun displaySharedFolderPath() {
-        sharedFolderPathTextView.text = getString(R.string.label_shared_folder_path, preferences.remoteApkPath)
+        displaySharedFolderPath(preferences.remoteApkPath.toOsInterpretedPathDisplay())
+    }
+
+    private fun displaySharedFolderPath(remotePath: String) {
+        sharedFolderPathTextView.text = getString(
+            R.string.label_shared_folder_path,
+            remotePath
+        )
     }
 
     private fun connectAndLoadApks() {
@@ -90,9 +97,12 @@ class MainActivity : Activity() {
 
         runRemoteFileTask(
             onFailureMessage = { getString(R.string.message_ssh_error, it) },
-            onFailure = {
+            onFailure = { error ->
                 isLoadingRemoteFileList = false
                 apkListContainer.removeAllViews()
+                if (error is RemotePathResolutionException) {
+                    displaySharedFolderPath(getString(R.string.label_shared_folder_path_error))
+                }
             },
             onStart = {
                 isLoadingRemoteFileList = true
@@ -100,9 +110,11 @@ class MainActivity : Activity() {
                 showShortToast(getString(R.string.message_connecting))
             }
         ) { remoteFiles ->
+            val resolvedPath = remoteFiles.resolvedDirectory()
             val apkNames = remoteFiles.listFiles()
             runOnUiThread {
                 isLoadingRemoteFileList = false
+                displaySharedFolderPath(resolvedPath)
                 displayApkButtons(apkNames)
             }
         }
@@ -111,7 +123,7 @@ class MainActivity : Activity() {
     private fun runRemoteFileTask(
         onFailureMessage: (String) -> String,
         onStart: () -> Unit = {},
-        onFailure: () -> Unit = {},
+        onFailure: (Throwable) -> Unit = {},
         task: (SshRemoteFileSession) -> Unit
     ) {
         val serverConfig = preferences.serverConfig()
@@ -126,7 +138,7 @@ class MainActivity : Activity() {
                 SshRemoteFileSession.connect(serverConfig).use(task)
             }.onFailure { error ->
                 runOnUiThread {
-                    onFailure()
+                    onFailure(error)
                     showShortToast(onFailureMessage(error.displayMessage()))
                 }
             }

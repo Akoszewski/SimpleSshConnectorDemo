@@ -20,7 +20,7 @@ Initial UI:
 - The port is optional and defaults to the standard SSH port, `22`.
 - Remember the SSH target between launches and save it while it is edited in the configuration activity.
 - In the configuration activity, show a single-line shared folder field.
-- The shared folder field should default to `~/Artifacts/android/`.
+- The shared folder field should start empty.
 - Remember the shared folder between launches and save it while it is edited in the configuration activity.
 - In the configuration activity, show a single-line terminal start folder field.
 - If the terminal start folder is blank, the SSH terminal should open in the server default home directory.
@@ -33,7 +33,7 @@ Initial UI:
 - Under `Generate key`, show a text field containing the generated public key for copying.
 - Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.
 - Store the generated private key internally for SSH connections, encrypted at rest with a system-based keystore-backed key and without requiring biometric confirmation.
-- Show a visually separated `Shared folder` section on the main screen with the configured remote path below the section title.
+- Show a visually separated `Shared folder` section on the main screen with the configured remote path below the section title, formatted as the shell-interpreted path rather than the literal typed value.
 - Show a `Reload` button in the shared folder section.
 - Show an `Upload` button in the same row as `Reload`; both buttons should take half of the available row width.
 - Pressing `Upload` should open the phone file picker and upload the selected file to the configured shared folder over SFTP.

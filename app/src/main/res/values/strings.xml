@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">SimpleSshConnector</string>
+    <string name="title_main_app">Simple SSH Connector</string>
 
     <string name="action_terminal">Terminal</string>
     <string name="action_configuration">Configuration</string>
@@ -18,7 +19,7 @@
     <string name="action_next_command">Next command</string>
 
     <string name="hint_ssh_target">user@host:port</string>
-    <string name="hint_remote_apk_path">~/Artifacts/android/</string>
+    <string name="hint_remote_apk_path">shared folder path</string>
     <string name="hint_terminal_start_path">leave empty for home</string>
     <string name="hint_ssh_public_key">SSH public key</string>
     <string name="hint_terminal_command">Enter command...</string>
@@ -29,6 +30,7 @@
     <string name="label_remote_apk_path">Shared folder:</string>
     <string name="label_shared_folder_section">Shared folder</string>
     <string name="label_shared_folder_path">Remote path: %1$s</string>
+    <string name="label_shared_folder_path_error">&lt;path error&gt;</string>
     <string name="label_terminal_start_path">Terminal start folder:</string>
     <string name="label_install_downloaded_apks">Install downloaded .apk files automatically</string>
     <string name="label_upload_screenshots">Upload screenshots to shared folder</string>

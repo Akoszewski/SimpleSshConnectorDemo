@@ -14,7 +14,7 @@ class AppPreferences private constructor(
         get() = sshPrivateKeyStore.get()
 
     val remoteApkPath: String
-        get() = preferences.getString(KEY_REMOTE_APK_PATH, DEFAULT_REMOTE_APK_PATH)?.trim().orEmpty()
+        get() = preferences.getString(KEY_REMOTE_APK_PATH, "")?.trim().orEmpty()
 
     val terminalStartPath: String
         get() = preferences.getString(KEY_TERMINAL_START_PATH, "")?.trim().orEmpty()
@@ -69,8 +69,6 @@ class AppPreferences private constructor(
     }
 
     companion object {
-        const val DEFAULT_REMOTE_APK_PATH = "~/Artifacts/android/"
-
         private const val PREFERENCES_NAME = "ssh_apk_downloader"
         private const val KEY_IP_ADDRESS = "ip_address"
         private const val KEY_PUBLIC_SSH_KEY = "public_ssh_key"

@@ -12,6 +12,18 @@ class SshRemoteFileSession private constructor(
     private val session: Session,
     private val remoteDirectory: String
 ) : Closeable {
+    fun resolvedDirectory(): String {
+        try {
+            return executeRemoteCommand(remoteDirectory.toResolvedDirectoryCommand())
+                .lineSequence()
+                .firstOrNull()
+                .orEmpty()
+                .removeSuffix("\r")
+        } catch (error: Throwable) {
+            throw RemotePathResolutionException(error.displayMessage(), error)
+        }
+    }
+
     fun listFiles(): List<String> {
         val command = "find ${remoteDirectory.toShellPathExpression()} -maxdepth 1 -type f -printf '%f\\n' | sort"
         return executeRemoteCommand(command)
@@ -118,3 +130,8 @@ class SshRemoteFileSession private constructor(
         }
     }
 }
+
+class RemotePathResolutionException(
+    message: String,
+    cause: Throwable
+) : IllegalStateException(message, cause)
