@@ -33,6 +33,8 @@ Initial UI:
 - Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.
 - Store the generated private key internally for SSH connections.
 - Show a `Load files` button on the main screen.
+- Show an `Upload` button in the same row as `Load files`; both buttons should take half of the available row width.
+- Pressing `Upload` should open the phone file picker and upload the selected file to the configured shared folder over SFTP.
 - Keep clear vertical spacing between the `Load files` button and the APK download buttons.
 - Use a polished visual style with consistent colors, readable text contrast, and comfortable spacing.
 

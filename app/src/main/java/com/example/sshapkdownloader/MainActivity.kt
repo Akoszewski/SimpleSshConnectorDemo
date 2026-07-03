@@ -16,6 +16,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.OpenableColumns
 import android.provider.MediaStore
 import android.view.Gravity
 import android.webkit.MimeTypeMap
@@ -57,7 +58,20 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.connectButton).setOnClickListener {
             connectAndLoadApks()
         }
+        findViewById<Button>(R.id.uploadButton).setOnClickListener {
+            openUploadFilePicker()
+        }
         displayApkBinaryHash()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == UPLOAD_FILE_REQUEST_CODE && resultCode == RESULT_OK) {
+            data?.data?.let { uri ->
+                uploadSelectedFile(uri)
+            }
+        }
     }
 
     override fun onResume() {
@@ -313,6 +327,54 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    private fun openUploadFilePicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+
+        runCatching {
+            startActivityForResult(intent, UPLOAD_FILE_REQUEST_CODE)
+        }.onFailure { error ->
+            showToast(getString(R.string.message_file_picker_error, error.displayMessage()))
+        }
+    }
+
+    private fun uploadSelectedFile(uri: Uri) {
+        val address = getStoredAddress()
+        val privateKey = getStoredPrivateKey()
+        val remoteApkPath = getStoredRemoteApkPath()
+        val fileName = displayNameFor(uri)
+
+        if (address.isEmpty() || privateKey.isBlank() || remoteApkPath.isBlank()) {
+            showToast(getString(R.string.message_ssh_target_key_and_path_required))
+            return
+        }
+
+        showToast(getString(R.string.message_upload_started, fileName))
+
+        Thread {
+            runCatching {
+                RemoteFileNameValidator.requireValid(fileName)
+                val session = SshSessionFactory.create(SshTargetParser.parse(address), privateKey)
+                try {
+                    session.connect(15_000)
+                    uploadRemoteFile(session, remoteApkPath, uri, fileName)
+                    listRemoteFiles(session, remoteApkPath)
+                } finally {
+                    session.disconnect()
+                }
+            }.onSuccess { apkNames ->
+                runOnUiThread {
+                    showToast(getString(R.string.message_upload_completed, fileName))
+                    displayApkButtons(apkNames)
+                }
+            }.onFailure { error ->
+                showToastOnUiThread(getString(R.string.message_upload_error, error.displayMessage()))
+            }
+        }.start()
+    }
+
     private fun openTerminal() {
         val address = getStoredAddress()
         val privateKey = getStoredPrivateKey()
@@ -361,6 +423,38 @@ class MainActivity : Activity() {
         } finally {
             channel.disconnect()
         }
+    }
+
+    private fun uploadRemoteFile(session: Session, remoteApkPath: String, uri: Uri, fileName: String) {
+        val channel = session.openChannel("sftp") as ChannelSftp
+        channel.connect(15_000)
+        try {
+            channel.cd(remoteApkPath.toSftpDirectory())
+            contentResolver.openInputStream(uri)?.use { input ->
+                channel.put(input, fileName)
+            } ?: error("Cannot open selected file")
+        } finally {
+            channel.disconnect()
+        }
+    }
+
+    private fun displayNameFor(uri: Uri): String {
+        if (uri.scheme == "content") {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) {
+                        val displayName = cursor.getString(index)
+                        if (!displayName.isNullOrBlank()) {
+                            return displayName
+                        }
+                    }
+                }
+            }
+        }
+
+        return uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { null }
+            ?: "uploaded-file"
     }
 
     private fun openDownloadDestination(apkName: String): DownloadDestination {
@@ -564,6 +658,7 @@ class MainActivity : Activity() {
     companion object {
         private const val DOWNLOAD_CHANNEL_ID = "apk_downloads"
         private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 100
+        private const val UPLOAD_FILE_REQUEST_CODE = 101
         private const val DEFAULT_REMOTE_APK_PATH = "~/Artifacts/android/"
         private const val DEFAULT_FILE_MIME_TYPE = "application/octet-stream"
         private val MEDIASTORE_DOWNLOAD_RELATIVE_PATH = "${Environment.DIRECTORY_DOWNLOADS}/SshApkDownloader"

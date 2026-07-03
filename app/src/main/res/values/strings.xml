@@ -4,6 +4,7 @@
     <string name="action_terminal">Terminal</string>
     <string name="action_configuration">Configuration</string>
     <string name="action_connect">Load shared files</string>
+    <string name="action_upload">Upload</string>
     <string name="action_delete">Delete</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_generate_key">Generate key</string>
@@ -42,6 +43,10 @@
     <string name="message_download_started">Download started: %1$s</string>
     <string name="message_download_completed">Download completed: %1$s</string>
     <string name="message_download_error">Download error: %1$s</string>
+    <string name="message_upload_started">Upload started: %1$s</string>
+    <string name="message_upload_completed">Uploaded: %1$s</string>
+    <string name="message_upload_error">Upload error: %1$s</string>
+    <string name="message_file_picker_error">Cannot open file picker: %1$s</string>
     <string name="message_install_open_error">Cannot open installer: %1$s</string>
     <string name="title_delete_file">Delete file?</string>
     <string name="message_confirm_delete_file">Are you sure you want to delete %1$s?</string>
