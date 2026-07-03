@@ -10,6 +10,7 @@ import android.text.TextWatcher
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 
@@ -66,7 +67,7 @@ class ConfigActivity : Activity() {
         installDownloadedApksCheckBox.setOnCheckedChangeListener { _, isChecked ->
             saveDownloadedApkInstallEnabled(isChecked)
         }
-        findViewById<Button>(R.id.copyButton).setOnClickListener {
+        findViewById<ImageButton>(R.id.copyButton).setOnClickListener {
             copyPublicKey()
         }
         restoreSavedValues()
