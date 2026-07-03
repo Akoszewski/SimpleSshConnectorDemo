@@ -35,6 +35,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var apkBinaryHashTextView: TextView
+    private lateinit var sharedFolderPathTextView: TextView
     private lateinit var apkListContainer: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +44,7 @@ class MainActivity : Activity() {
         requestNotificationPermission()
         setContentView(R.layout.activity_main)
         apkBinaryHashTextView = findViewById(R.id.apkBinaryHashTextView)
+        sharedFolderPathTextView = findViewById(R.id.sharedFolderPathTextView)
         apkListContainer = findViewById(R.id.apkListContainer)
         findViewById<Button>(R.id.terminalButton).setOnClickListener {
             openTerminal()
@@ -71,11 +73,16 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        displaySharedFolderPath()
         if (preferences.uploadScreenshotsToSharedFolder && canReadImages()) {
             ScreenshotUploadManager.start(this)
         } else {
             ScreenshotUploadManager.stop(this)
         }
+    }
+
+    private fun displaySharedFolderPath() {
+        sharedFolderPathTextView.text = getString(R.string.label_shared_folder_path, preferences.remoteApkPath)
     }
 
     private fun connectAndLoadApks() {

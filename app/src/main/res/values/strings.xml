@@ -3,7 +3,7 @@
 
     <string name="action_terminal">Terminal</string>
     <string name="action_configuration">Configuration</string>
-    <string name="action_connect">Load shared files</string>
+    <string name="action_connect">Show</string>
     <string name="action_upload">Upload</string>
     <string name="action_delete">Delete</string>
     <string name="action_cancel">Cancel</string>
@@ -27,6 +27,8 @@
     <string name="title_ssh_terminal">SSH Terminal</string>
     <string name="label_server_address">SSH server:</string>
     <string name="label_remote_apk_path">Shared folder:</string>
+    <string name="label_shared_folder_section">Shared folder</string>
+    <string name="label_shared_folder_path">Remote path: %1$s</string>
     <string name="label_terminal_start_path">Terminal start folder:</string>
     <string name="label_install_downloaded_apks">Install downloaded .apk files automatically</string>
     <string name="label_upload_screenshots">Upload screenshots to shared folder</string>

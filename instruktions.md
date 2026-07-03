@@ -32,15 +32,16 @@ Initial UI:
 - Under `Generate key`, show a text field containing the generated public key for copying.
 - Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.
 - Store the generated private key internally for SSH connections, encrypted at rest with a system-based keystore-backed key and without requiring biometric confirmation.
-- Show a `Load files` button on the main screen.
-- Show an `Upload` button in the same row as `Load files`; both buttons should take half of the available row width.
+- Show a visually separated `Shared folder` section on the main screen with the configured remote path below the section title.
+- Show a `Show` button in the shared folder section.
+- Show an `Upload` button in the same row as `Show`; both buttons should take half of the available row width.
 - Pressing `Upload` should open the phone file picker and upload the selected file to the configured shared folder over SFTP.
-- Keep clear vertical spacing between the `Load files` button and the APK download buttons.
+- Keep clear vertical spacing between the shared folder action buttons and the APK download buttons.
 - Use a polished visual style with consistent colors, readable text contrast, and comfortable spacing.
 
 Connection behavior:
 
-- After pressing `Load files`, connect to the server using the provided credentials.
+- After pressing `Show`, connect to the server using the provided credentials.
 - Load all regular files located on the server at the configured remote shared folder path.
 - Display one button per file.
 - Button labels should be the filenames.
