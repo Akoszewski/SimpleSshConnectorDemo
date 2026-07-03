@@ -51,6 +51,8 @@
     <string name="message_install_open_error">Cannot open installer: %1$s</string>
     <string name="title_delete_file">Delete file?</string>
     <string name="message_confirm_delete_file">Are you sure you want to delete %1$s?</string>
+    <string name="title_generate_key_warning">Generate new SSH key?</string>
+    <string name="message_confirm_generate_key">Generating a new SSH key replaces the current key. You will not be able to connect to this server with the old key unless that old public key is still authorized on the server.</string>
     <string name="message_delete_started">Delete started: %1$s</string>
     <string name="message_delete_completed">Deleted: %1$s</string>
     <string name="message_delete_error">Delete error: %1$s</string>

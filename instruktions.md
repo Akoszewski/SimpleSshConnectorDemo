@@ -30,6 +30,7 @@ Initial UI:
 - The app should generate its own Ed25519 SSH key instead of asking the user to paste a private key.
 - New generated public SSH keys should use `simple-ssh-connector` as their public key comment/name.
 - In the configuration activity, add a `Generate key` button below the SSH target field.
+- Pressing `Generate key` should show a confirmation dialog warning that generating a new SSH key replaces the current key and the app will not be able to connect to the server with the old key unless that old public key remains authorized on the server.
 - Under `Generate key`, show a text field containing the generated public key for copying.
 - Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.
 - Store the generated private key internally for SSH connections, encrypted at rest with a system-based keystore-backed key and without requiring biometric confirmation.

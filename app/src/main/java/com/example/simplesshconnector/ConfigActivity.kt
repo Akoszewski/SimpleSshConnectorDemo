@@ -1,6 +1,7 @@
 package com.example.simplesshconnector
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -38,7 +39,7 @@ class ConfigActivity : Activity() {
         remoteApkPathEditText.doOnTextChanged(preferences::setRemoteApkPath)
         terminalStartPathEditText.doOnTextChanged(preferences::setTerminalStartPath)
         generateButton.setOnClickListener {
-            generateKey()
+            confirmKeyGeneration()
         }
         uploadScreenshotsCheckBox.setOnCheckedChangeListener { _, isChecked ->
             saveScreenshotUploadEnabled(isChecked)
@@ -96,6 +97,17 @@ class ConfigActivity : Activity() {
             ScreenshotUploadManager.stop(this)
             showShortToast(getString(R.string.message_image_permission_required))
         }
+    }
+
+    private fun confirmKeyGeneration() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.title_generate_key_warning)
+            .setMessage(R.string.message_confirm_generate_key)
+            .setNegativeButton(R.string.action_cancel, null)
+            .setPositiveButton(R.string.action_generate_key) { _, _ ->
+                generateKey()
+            }
+            .show()
     }
 
     private fun generateKey() {
