@@ -20,6 +20,7 @@ class ConfigActivity : Activity() {
     private lateinit var ipAddressEditText: EditText
     private lateinit var remoteApkPathEditText: EditText
     private lateinit var terminalStartPathEditText: EditText
+    private lateinit var installDownloadedApksCheckBox: CheckBox
     private lateinit var uploadScreenshotsCheckBox: CheckBox
     private lateinit var publicKeyEditText: EditText
     private lateinit var generateButton: Button
@@ -30,6 +31,7 @@ class ConfigActivity : Activity() {
         ipAddressEditText = findViewById(R.id.ipAddressEditText)
         remoteApkPathEditText = findViewById(R.id.remoteApkPathEditText)
         terminalStartPathEditText = findViewById(R.id.terminalStartPathEditText)
+        installDownloadedApksCheckBox = findViewById(R.id.installDownloadedApksCheckBox)
         uploadScreenshotsCheckBox = findViewById(R.id.uploadScreenshotsCheckBox)
         publicKeyEditText = findViewById(R.id.publicKeyEditText)
         generateButton = findViewById(R.id.generateButton)
@@ -60,6 +62,9 @@ class ConfigActivity : Activity() {
         uploadScreenshotsCheckBox.setOnCheckedChangeListener { _, isChecked ->
             saveScreenshotUploadEnabled(isChecked)
         }
+        installDownloadedApksCheckBox.setOnCheckedChangeListener { _, isChecked ->
+            saveDownloadedApkInstallEnabled(isChecked)
+        }
         findViewById<Button>(R.id.copyButton).setOnClickListener {
             copyPublicKey()
         }
@@ -70,6 +75,7 @@ class ConfigActivity : Activity() {
         ipAddressEditText.setText(preferences.getString("ip_address", ""))
         remoteApkPathEditText.setText(preferences.getString("remote_apk_path", DEFAULT_REMOTE_APK_PATH))
         terminalStartPathEditText.setText(preferences.getString("terminal_start_path", ""))
+        installDownloadedApksCheckBox.isChecked = preferences.getBoolean("install_downloaded_apks", false)
         uploadScreenshotsCheckBox.isChecked = preferences.getBoolean("upload_screenshots_to_shared_folder", false)
         publicKeyEditText.setText(preferences.getString("public_ssh_key", ""))
     }
@@ -89,6 +95,12 @@ class ConfigActivity : Activity() {
     private fun saveTerminalStartPath(terminalStartPath: String) {
         preferences.edit()
             .putString("terminal_start_path", terminalStartPath)
+            .apply()
+    }
+
+    private fun saveDownloadedApkInstallEnabled(enabled: Boolean) {
+        preferences.edit()
+            .putBoolean("install_downloaded_apks", enabled)
             .apply()
     }
 

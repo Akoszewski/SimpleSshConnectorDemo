@@ -26,6 +26,7 @@
     <string name="label_server_address">SSH server:</string>
     <string name="label_remote_apk_path">Shared folder:</string>
     <string name="label_terminal_start_path">Terminal start folder:</string>
+    <string name="label_install_downloaded_apks">Install downloaded .apk files automatically</string>
     <string name="label_upload_screenshots">Upload screenshots to shared folder</string>
 
     <string name="apk_binary_hash_loading">App APK SHA-256: ...</string>
@@ -40,6 +41,7 @@
     <string name="message_download_started">Download started: %1$s</string>
     <string name="message_download_completed">Download completed: %1$s</string>
     <string name="message_download_error">Download error: %1$s</string>
+    <string name="message_install_open_error">Cannot open installer: %1$s</string>
     <string name="title_delete_file">Delete file?</string>
     <string name="message_confirm_delete_file">Are you sure you want to delete %1$s?</string>
     <string name="message_delete_started">Delete started: %1$s</string>
