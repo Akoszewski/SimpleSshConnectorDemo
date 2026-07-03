@@ -105,7 +105,7 @@ class SshRemoteFileSession private constructor(
             return SshRemoteFileSession(session, remoteDirectory)
         }
 
-        fun connect(address: String, privateKey: String, remoteDirectory: String): SshRemoteFileSession {
+        fun connect(address: String, privateKey: SshPrivateKey, remoteDirectory: String): SshRemoteFileSession {
             return connect(
                 SshServerConfig(
                     address = address,

@@ -2,7 +2,7 @@ package com.example.sshapkdownloader
 
 data class SshServerConfig(
     val address: String,
-    val privateKey: String,
+    val privateKey: SshPrivateKey,
     val remoteApkPath: String,
     val terminalStartPath: String
 ) {

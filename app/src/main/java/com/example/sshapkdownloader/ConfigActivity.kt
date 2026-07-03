@@ -104,10 +104,10 @@ class ConfigActivity : Activity() {
 
         Thread {
             runCatching {
-                SshKeyGenerator.generate()
+                SshKeyGenerator.generate().also { keyPair ->
+                    preferences.setGeneratedKeys(keyPair.privateKeyPem, keyPair.publicKeyOpenSsh)
+                }
             }.onSuccess { keyPair ->
-                preferences.setGeneratedKeys(keyPair.privateKeyPem, keyPair.publicKeyOpenSsh)
-
                 runOnUiThread {
                     publicKeyEditText.setText(keyPair.publicKeyOpenSsh)
                     generateButton.isEnabled = true

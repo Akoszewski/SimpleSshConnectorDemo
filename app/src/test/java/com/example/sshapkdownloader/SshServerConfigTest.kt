@@ -57,7 +57,7 @@ class SshServerConfigTest {
     ): SshServerConfig {
         return SshServerConfig(
             address = address,
-            privateKey = privateKey,
+            privateKey = SshPrivateKey(privateKey),
             remoteApkPath = remoteApkPath,
             terminalStartPath = terminalStartPath
         )

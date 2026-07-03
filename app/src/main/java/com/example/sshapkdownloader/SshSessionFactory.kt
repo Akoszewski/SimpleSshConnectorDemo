@@ -8,13 +8,13 @@ object SshSessionFactory {
         return create(config.target, config.privateKey)
     }
 
-    fun create(target: SshTarget, privateKey: String): Session {
+    fun create(target: SshTarget, privateKey: SshPrivateKey): Session {
         JschEd25519Support.configure()
 
         val jsch = JSch()
         jsch.addIdentity(
             "ssh-apk-downloader-key",
-            privateKey.toByteArray(Charsets.UTF_8),
+            privateKey.toByteArray(),
             null,
             null
         )

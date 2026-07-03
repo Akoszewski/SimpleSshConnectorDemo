@@ -4,13 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 
 class AppPreferences private constructor(
-    private val preferences: SharedPreferences
+    private val preferences: SharedPreferences,
+    private val sshPrivateKeyStore: SshPrivateKeyStore = SshPrivateKeyStore(preferences)
 ) {
     val address: String
         get() = preferences.getString(KEY_IP_ADDRESS, "")?.trim().orEmpty()
 
-    val privateKey: String
-        get() = preferences.getString(KEY_PRIVATE_SSH_KEY, "").orEmpty()
+    val privateKey: SshPrivateKey
+        get() = sshPrivateKeyStore.get()
 
     val remoteApkPath: String
         get() = preferences.getString(KEY_REMOTE_APK_PATH, DEFAULT_REMOTE_APK_PATH)?.trim().orEmpty()
@@ -19,7 +20,12 @@ class AppPreferences private constructor(
         get() = preferences.getString(KEY_TERMINAL_START_PATH, "")?.trim().orEmpty()
 
     val publicKey: String
-        get() = preferences.getString(KEY_PUBLIC_SSH_KEY, "").orEmpty()
+        get() {
+            if (privateKey.isBlank()) {
+                return ""
+            }
+            return preferences.getString(KEY_PUBLIC_SSH_KEY, "").orEmpty()
+        }
 
     var installDownloadedApks: Boolean
         get() = preferences.getBoolean(KEY_INSTALL_DOWNLOADED_APKS, false)
@@ -56,8 +62,8 @@ class AppPreferences private constructor(
     }
 
     fun setGeneratedKeys(privateKeyPem: String, publicKeyOpenSsh: String) {
+        sshPrivateKeyStore.set(SshPrivateKey(privateKeyPem))
         preferences.edit()
-            .putString(KEY_PRIVATE_SSH_KEY, privateKeyPem)
             .putString(KEY_PUBLIC_SSH_KEY, publicKeyOpenSsh)
             .apply()
     }
@@ -67,7 +73,6 @@ class AppPreferences private constructor(
 
         private const val PREFERENCES_NAME = "ssh_apk_downloader"
         private const val KEY_IP_ADDRESS = "ip_address"
-        private const val KEY_PRIVATE_SSH_KEY = "private_ssh_key"
         private const val KEY_PUBLIC_SSH_KEY = "public_ssh_key"
         private const val KEY_REMOTE_APK_PATH = "remote_apk_path"
         private const val KEY_TERMINAL_START_PATH = "terminal_start_path"
