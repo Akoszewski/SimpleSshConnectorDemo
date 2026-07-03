@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -131,37 +132,80 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         val initialPaddingRight = rootView.paddingRight
         val initialPaddingBottom = rootView.paddingBottom
         val keyboardClearancePx = KEYBOARD_CLEARANCE_DP.dpToPx()
+        var statusTopInset = 0
+        var navigationBottomInset = 0
+        var imeBottomInset = 0
+        var imeVisible = false
 
-        rootView.setOnApplyWindowInsetsListener { view, insets ->
-            val keyboardBottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        fun updateRootPadding() {
+            val visibleFrame = Rect()
+            rootView.getWindowVisibleDisplayFrame(visibleFrame)
+            val fullWindowHeight = rootView.rootView.height
+            val contentHeight = rootView.height
+            val visibleWindowBottom = visibleFrame.bottom
+            val keyboardOverlap = (fullWindowHeight - visibleWindowBottom).coerceAtLeast(0)
+            val keyboardHeight = (maxOf(imeBottomInset, keyboardOverlap) - navigationBottomInset).coerceAtLeast(0)
+            val keyboardVisible = imeVisible || keyboardHeight > KEYBOARD_VISIBILITY_THRESHOLD_DP.dpToPx()
+            val contentAlreadyResized = keyboardVisible &&
+                fullWindowHeight - contentHeight >= keyboardHeight - KEYBOARD_RESIZE_TOLERANCE_DP.dpToPx()
+            val keyboardPadding = if (keyboardVisible && !contentAlreadyResized) {
+                keyboardHeight
+            } else {
+                0
+            }
+            val bottomPadding = if (keyboardVisible) {
+                initialPaddingBottom + keyboardClearancePx + keyboardPadding
+            } else {
+                TERMINAL_BOTTOM_PADDING_WITHOUT_KEYBOARD_DP.dpToPx() + navigationBottomInset
+            }
+
+            val topPadding = initialPaddingTop + statusTopInset
+            if (
+                rootView.paddingLeft != initialPaddingLeft ||
+                rootView.paddingTop != topPadding ||
+                rootView.paddingRight != initialPaddingRight ||
+                rootView.paddingBottom != bottomPadding
+            ) {
+                rootView.setPadding(
+                    initialPaddingLeft,
+                    topPadding,
+                    initialPaddingRight,
+                    bottomPadding
+                )
+            }
+            if (keyboardVisible) {
+                scrollOutputToBottom()
+            }
+        }
+
+        rootView.setOnApplyWindowInsetsListener { _, insets ->
+            imeBottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 insets.getInsets(WindowInsets.Type.ime()).bottom
             } else {
                 @Suppress("DEPRECATION")
                 insets.systemWindowInsetBottom
             }
-            val statusTopInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            statusTopInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 insets.getInsets(WindowInsets.Type.statusBars()).top
             } else {
                 @Suppress("DEPRECATION")
                 insets.systemWindowInsetTop
             }
-            val navigationBottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            navigationBottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 insets.getInsets(WindowInsets.Type.navigationBars()).bottom
             } else {
                 0
             }
-            val keyboardVisible = keyboardBottomInset > navigationBottomInset
-            val extraKeyboardPadding = (keyboardBottomInset - navigationBottomInset).coerceAtLeast(0) +
-                if (keyboardVisible) keyboardClearancePx else 0
-
-            view.setPadding(
-                initialPaddingLeft,
-                initialPaddingTop + statusTopInset,
-                initialPaddingRight,
-                initialPaddingBottom + extraKeyboardPadding
-            )
-            scrollOutputToBottom()
+            imeVisible = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insets.isVisible(WindowInsets.Type.ime()) && imeBottomInset > navigationBottomInset
+            } else {
+                imeBottomInset > 0
+            }
+            updateRootPadding()
             insets
+        }
+        rootView.viewTreeObserver.addOnGlobalLayoutListener {
+            updateRootPadding()
         }
         rootView.requestApplyInsets()
     }
@@ -338,7 +382,10 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         val DOWN_ARROW_KEY_BYTES = "\u001B[B".toByteArray(Charsets.UTF_8)
         const val INPUT_EDIT_SYNC_DELAY_MS = 150L
         const val INPUT_EDIT_SYNC_MAX_ATTEMPTS = 6
-        const val KEYBOARD_CLEARANCE_DP = 12
+        const val KEYBOARD_CLEARANCE_DP = 8
+        const val KEYBOARD_VISIBILITY_THRESHOLD_DP = 80
+        const val KEYBOARD_RESIZE_TOLERANCE_DP = 24
+        const val TERMINAL_BOTTOM_PADDING_WITHOUT_KEYBOARD_DP = 8
         const val OUTPUT_SCROLL_BOTTOM_TOLERANCE_PX = 24
         const val ENABLED_CONTROL_ALPHA = 1.0f
         const val DISABLED_CONTROL_ALPHA = 0.38f

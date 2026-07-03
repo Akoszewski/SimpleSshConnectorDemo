@@ -20,7 +20,7 @@
     <string name="hint_remote_apk_path">~/Artifacts/android/</string>
     <string name="hint_terminal_start_path">leave empty for home</string>
     <string name="hint_ssh_public_key">SSH public key</string>
-    <string name="hint_terminal_command">command</string>
+    <string name="hint_terminal_command">Enter command...</string>
 
     <string name="title_configuration">Configuration</string>
     <string name="title_ssh_terminal">SSH Terminal</string>
