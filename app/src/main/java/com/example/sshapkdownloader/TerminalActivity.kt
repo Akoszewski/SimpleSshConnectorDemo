@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
@@ -41,6 +42,11 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     private var remoteInputPromptColumn: Int? = null
     private var inputSyncGeneration = 0
     private var shouldFollowTerminalOutput = true
+    private var userScrollingOutput = false
+    private val stopTrackingManualOutputScroll = Runnable {
+        userScrollingOutput = false
+        shouldFollowTerminalOutput = isOutputScrolledToBottom()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -356,9 +362,30 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     }
 
     private fun trackManualOutputScroll() {
-        outputScrollView.viewTreeObserver.addOnScrollChangedListener {
-            shouldFollowTerminalOutput = isOutputScrolledToBottom()
+        outputScrollView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    mainHandler.removeCallbacks(stopTrackingManualOutputScroll)
+                    userScrollingOutput = true
+                    shouldFollowTerminalOutput = false
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    scheduleStopTrackingManualOutputScroll()
+                }
+            }
+            false
         }
+        outputScrollView.viewTreeObserver.addOnScrollChangedListener {
+            if (userScrollingOutput) {
+                shouldFollowTerminalOutput = isOutputScrolledToBottom()
+                scheduleStopTrackingManualOutputScroll()
+            }
+        }
+    }
+
+    private fun scheduleStopTrackingManualOutputScroll() {
+        mainHandler.removeCallbacks(stopTrackingManualOutputScroll)
+        mainHandler.postDelayed(stopTrackingManualOutputScroll, OUTPUT_MANUAL_SCROLL_IDLE_DELAY_MS)
     }
 
     private fun isOutputScrolledToBottom(): Boolean {
@@ -398,6 +425,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         const val KEYBOARD_RESIZE_TOLERANCE_DP = 24
         const val TERMINAL_BOTTOM_PADDING_WITHOUT_KEYBOARD_DP = 8
         const val OUTPUT_SCROLL_BOTTOM_TOLERANCE_PX = 24
+        const val OUTPUT_MANUAL_SCROLL_IDLE_DELAY_MS = 250L
         const val ENABLED_CONTROL_ALPHA = 1.0f
         const val DISABLED_CONTROL_ALPHA = 0.38f
     }
