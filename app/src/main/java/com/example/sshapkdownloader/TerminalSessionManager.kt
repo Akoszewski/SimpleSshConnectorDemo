@@ -1,7 +1,6 @@
 package com.example.sshapkdownloader
 
 import android.content.Context
-import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -355,7 +354,6 @@ object TerminalSessionManager {
         private var keepAliveThread: Thread? = null
 
         private var terminalWakeLock: PowerManager.WakeLock? = null
-        private var terminalWifiLock: WifiManager.WifiLock? = null
 
         fun start() {
             if (stopRequested) {
@@ -614,22 +612,13 @@ object TerminalSessionManager {
         }
 
         private fun acquireTerminalLocks() {
-            if (terminalWakeLock?.isHeld == true && terminalWifiLock?.isHeld == true) {
+            if (terminalWakeLock?.isHeld == true) {
                 return
             }
             val powerManager = request.context.getSystemService(Context.POWER_SERVICE) as PowerManager
             terminalWakeLock = powerManager.newWakeLock(
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "${request.context.packageName}:TerminalSshSession"
-            ).apply {
-                setReferenceCounted(false)
-                acquire()
-            }
-
-            val wifiManager = request.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            terminalWifiLock = wifiManager.createWifiLock(
-                WifiManager.WIFI_MODE_FULL_HIGH_PERF,
-                "${request.context.packageName}:TerminalSshWifi"
             ).apply {
                 setReferenceCounted(false)
                 acquire()
@@ -643,13 +632,6 @@ object TerminalSessionManager {
                 }
             }
             terminalWakeLock = null
-
-            terminalWifiLock?.let { wifiLock ->
-                if (wifiLock.isHeld) {
-                    wifiLock.release()
-                }
-            }
-            terminalWifiLock = null
         }
 
         private fun closeCurrentShell(releaseLocks: Boolean) {
