@@ -63,6 +63,7 @@
     <string name="terminal_connected">[connected]\n</string>
     <string name="terminal_disconnected">\n[disconnected]\n</string>
     <string name="terminal_connection_error">\n[connection error: %1$s]\n</string>
+    <string name="terminal_reconnecting">\n[connection lost; retrying in %1$d seconds]\n</string>
     <string name="terminal_remote_shell_closed">\n[remote shell closed]\n</string>
     <string name="terminal_write_error">\n[write error: %1$s]\n</string>
 

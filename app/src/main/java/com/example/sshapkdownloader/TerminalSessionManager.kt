@@ -28,6 +28,7 @@ object TerminalSessionManager {
     private val pendingOutput = ByteArrayOutputStream()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val disconnectStarted = AtomicBoolean(false)
+    private val reconnectScheduled = AtomicBoolean(false)
     private val flushPendingOutputRunnable = Runnable {
         flushPendingOutput()
     }
@@ -62,6 +63,9 @@ object TerminalSessionManager {
     @Volatile
     private var connecting = false
 
+    @Volatile
+    private var connectionRequest: ConnectionRequest? = null
+
     private var terminalWakeLock: PowerManager.WakeLock? = null
     private var terminalWifiLock: WifiManager.WifiLock? = null
 
@@ -82,8 +86,9 @@ object TerminalSessionManager {
     fun connect(context: Context, address: String, privateKey: String, initialDirectory: String) {
         val appContext = context.applicationContext
         applicationContext = appContext
+        connectionRequest = ConnectionRequest(appContext, address, privateKey, initialDirectory)
 
-        if (isSessionActive() || connecting) {
+        if (isSessionActive() || connecting || reconnectScheduled.get()) {
             notifyOutputChanged()
             notifyTerminalEnabled()
             return
@@ -92,6 +97,7 @@ object TerminalSessionManager {
         setTerminalEnabled(false)
         appendOutput(appContext.getString(R.string.terminal_connecting, address))
         stopRequested = false
+        reconnectScheduled.set(false)
         connecting = true
         disconnectStarted.set(false)
         TerminalForegroundService.start(appContext)
@@ -133,8 +139,11 @@ object TerminalSessionManager {
                 if (!stopRequested) {
                     appendOutput(appContext.getString(R.string.terminal_connection_error, error.displayMessage()))
                     setTerminalEnabled(false)
+                    scheduleReconnect()
                 }
-                disconnectShellAsync()
+                if (stopRequested) {
+                    disconnectShellAsync()
+                }
             }
         }.apply {
             name = "ssh-terminal-connect"
@@ -145,6 +154,7 @@ object TerminalSessionManager {
 
     fun disconnectByUser() {
         stopRequested = true
+        reconnectScheduled.set(false)
         appendOutput(contextString(R.string.terminal_disconnected))
         setTerminalEnabled(false)
         disconnectShellAsync()
@@ -152,6 +162,7 @@ object TerminalSessionManager {
 
     fun disconnectBecauseTaskRemoved() {
         stopRequested = true
+        reconnectScheduled.set(false)
         setTerminalEnabled(false)
         disconnectShell(stopForegroundService = false)
     }
@@ -206,7 +217,7 @@ object TerminalSessionManager {
         if (!stopRequested) {
             appendOutput(contextString(R.string.terminal_remote_shell_closed))
             setTerminalEnabled(false)
-            disconnectShellAsync()
+            scheduleReconnect()
         }
     }
 
@@ -225,7 +236,7 @@ object TerminalSessionManager {
                     if (!stopRequested) {
                         appendOutput(contextString(R.string.terminal_connection_error, error.displayMessage()))
                         setTerminalEnabled(false)
-                        disconnectShellAsync()
+                        scheduleReconnect()
                     }
                     return@Thread
                 }
@@ -256,6 +267,7 @@ object TerminalSessionManager {
             }.onFailure { error ->
                 appendOutput(contextString(R.string.terminal_write_error, error.displayMessage()))
                 setTerminalEnabled(false)
+                scheduleReconnect()
             }
         }.apply {
             name = "ssh-terminal-write-command"
@@ -293,6 +305,7 @@ object TerminalSessionManager {
             }.onFailure { error ->
                 appendOutput(contextString(R.string.terminal_write_error, error.displayMessage()))
                 setTerminalEnabled(false)
+                scheduleReconnect()
             }
         }.apply {
             name = "ssh-terminal-write-bytes"
@@ -306,6 +319,18 @@ object TerminalSessionManager {
     }
 
     private fun disconnectShell(stopForegroundService: Boolean) {
+        disconnectShell(
+            stopForegroundService = stopForegroundService,
+            releaseLocks = true,
+            notifyDisconnected = true
+        )
+    }
+
+    private fun disconnectShell(
+        stopForegroundService: Boolean,
+        releaseLocks: Boolean,
+        notifyDisconnected: Boolean
+    ) {
         if (!disconnectStarted.compareAndSet(false, true)) {
             return
         }
@@ -327,11 +352,15 @@ object TerminalSessionManager {
             session?.disconnect()
         }
         session = null
-        releaseTerminalLocks()
+        if (releaseLocks) {
+            releaseTerminalLocks()
+        }
         if (stopForegroundService) {
             applicationContext?.let { TerminalForegroundService.stop(it) }
         }
-        notifyDisconnected()
+        if (notifyDisconnected) {
+            notifyDisconnected()
+        }
     }
 
     private fun disconnectShellAsync() {
@@ -339,6 +368,43 @@ object TerminalSessionManager {
             disconnectShell()
         }.apply {
             name = "ssh-terminal-disconnect"
+            isDaemon = true
+            start()
+        }
+    }
+
+    private fun scheduleReconnect() {
+        val request = connectionRequest ?: return
+        if (stopRequested || !reconnectScheduled.compareAndSet(false, true)) {
+            return
+        }
+
+        appendOutput(contextString(R.string.terminal_reconnecting, TERMINAL_RECONNECT_DELAY_MS / 1000))
+        Thread {
+            disconnectShell(
+                stopForegroundService = false,
+                releaseLocks = false,
+                notifyDisconnected = false
+            )
+            disconnectStarted.set(false)
+            try {
+                Thread.sleep(TERMINAL_RECONNECT_DELAY_MS)
+            } catch (error: InterruptedException) {
+                Thread.currentThread().interrupt()
+                reconnectScheduled.set(false)
+                return@Thread
+            }
+            reconnectScheduled.set(false)
+            if (!stopRequested) {
+                connect(
+                    request.context,
+                    request.address,
+                    request.privateKey,
+                    request.initialDirectory
+                )
+            }
+        }.apply {
+            name = "ssh-terminal-reconnect"
             isDaemon = true
             start()
         }
@@ -479,12 +545,20 @@ object TerminalSessionManager {
         return CONTROL_U_BYTES + currentInput.toByteArray(Charsets.UTF_8) + keyBytes
     }
 
+    private data class ConnectionRequest(
+        val context: Context,
+        val address: String,
+        val privateKey: String,
+        val initialDirectory: String
+    )
+
     private const val TERMINAL_COLUMNS = TerminalScreenBuffer.DEFAULT_COLUMNS
     private const val TERMINAL_ROWS = TerminalScreenBuffer.DEFAULT_ROWS
     private const val ENTER_KEY = "\r"
     private const val ENTER_KEY_DELAY_MS = 60L
     private const val TERMINAL_RENDER_DELAY_MS = 50L
     private const val TERMINAL_KEEP_ALIVE_INTERVAL_MS = 10_000L
+    private const val TERMINAL_RECONNECT_DELAY_MS = 5_000L
     private val ENTER_KEY_BYTES = ENTER_KEY.toByteArray(Charsets.UTF_8)
     private val CONTROL_U_BYTES = byteArrayOf(0x15)
 }

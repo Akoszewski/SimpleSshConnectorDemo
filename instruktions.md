@@ -94,5 +94,6 @@ Terminal behavior:
 - The SSH session, shell channel, terminal screen buffer, keep-alive loop, and wake/Wi-Fi locks live outside `TerminalActivity`, so they survive activity recreation and navigation between app screens.
 - Returning to the terminal screen reattaches the UI to the existing terminal session and renders the current buffered terminal output.
 - The SSH session uses a keep-alive loop while the terminal remains connected.
+- If the SSH connection drops unexpectedly, the terminal should keep the typed command text and automatically retry the same SSH target and terminal start folder so it can recover when network connectivity returns.
 - Changing activities must not disconnect the terminal session.
-- Disconnect the terminal session when the user removes the app task.
+- Disconnect the terminal session and stop automatic retries when the user removes the app task.
