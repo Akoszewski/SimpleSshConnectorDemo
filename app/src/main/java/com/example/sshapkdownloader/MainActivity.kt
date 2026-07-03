@@ -271,6 +271,9 @@ class MainActivity : Activity() {
             }.onSuccess { apkUri ->
                 showToastOnUiThread(getString(R.string.message_download_completed, apkName))
                 showDownloadedNotification(apkName, apkUri)
+                if (shouldInstallDownloadedApk(apkName)) {
+                    openApkInstaller(apkName, apkUri)
+                }
             }.onFailure { error ->
                 showToastOnUiThread(getString(R.string.message_download_error, error.displayMessage()))
             }
@@ -455,6 +458,26 @@ class MainActivity : Activity() {
             .build()
 
         notificationManager().notify(apkName.hashCode(), notification)
+    }
+
+    private fun shouldInstallDownloadedApk(apkName: String): Boolean {
+        return apkName.endsWith(".apk", ignoreCase = true) &&
+            preferences.getBoolean("install_downloaded_apks", false)
+    }
+
+    private fun openApkInstaller(apkName: String, apkUri: Uri) {
+        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(apkUri, mimeTypeFor(apkName))
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        runOnUiThread {
+            runCatching {
+                startActivity(installIntent)
+            }.onFailure { error ->
+                showToast(getString(R.string.message_install_open_error, error.displayMessage()))
+            }
+        }
     }
 
     private fun createNotificationChannel() {

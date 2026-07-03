@@ -3,7 +3,7 @@
 
     <string name="action_terminal">Terminal</string>
     <string name="action_configuration">Configuration</string>
-    <string name="action_connect">Load files</string>
+    <string name="action_connect">Load shared files</string>
     <string name="action_delete">Delete</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_generate_key">Generate key</string>
@@ -11,6 +11,7 @@
     <string name="action_send">Send</string>
     <string name="action_exit">Cancel</string>
     <string name="action_copy_command">Copy command</string>
+    <string name="action_refresh_terminal">Refresh terminal</string>
     <string name="action_autocomplete">Autocomplete command</string>
     <string name="action_previous_command">Previous command</string>
     <string name="action_next_command">Next command</string>
@@ -19,13 +20,14 @@
     <string name="hint_remote_apk_path">~/Artifacts/android/</string>
     <string name="hint_terminal_start_path">leave empty for home</string>
     <string name="hint_ssh_public_key">SSH public key</string>
-    <string name="hint_terminal_command">command</string>
+    <string name="hint_terminal_command">Enter command...</string>
 
     <string name="title_configuration">Configuration</string>
     <string name="title_ssh_terminal">SSH Terminal</string>
     <string name="label_server_address">SSH server:</string>
     <string name="label_remote_apk_path">Shared folder:</string>
     <string name="label_terminal_start_path">Terminal start folder:</string>
+    <string name="label_install_downloaded_apks">Install downloaded .apk files automatically</string>
     <string name="label_upload_screenshots">Upload screenshots to shared folder</string>
 
     <string name="apk_binary_hash_loading">App APK SHA-256: ...</string>
@@ -40,6 +42,7 @@
     <string name="message_download_started">Download started: %1$s</string>
     <string name="message_download_completed">Download completed: %1$s</string>
     <string name="message_download_error">Download error: %1$s</string>
+    <string name="message_install_open_error">Cannot open installer: %1$s</string>
     <string name="title_delete_file">Delete file?</string>
     <string name="message_confirm_delete_file">Are you sure you want to delete %1$s?</string>
     <string name="message_delete_started">Delete started: %1$s</string>
@@ -51,6 +54,8 @@
     <string name="message_no_public_key">No public key</string>
     <string name="message_public_key_copied">Public key copied</string>
     <string name="message_terminal_not_connected">Terminal is not connected</string>
+    <string name="message_terminal_connection_lost">SSH connection was lost</string>
+    <string name="message_terminal_connection_recovered">SSH connection was recovered</string>
     <string name="message_no_command">No command</string>
     <string name="message_command_copied">Command copied</string>
     <string name="message_image_permission_required">Image permission is required to upload screenshots</string>
@@ -59,8 +64,10 @@
 
     <string name="terminal_connecting">Connecting to %1$s...\n</string>
     <string name="terminal_connected">[connected]\n</string>
+    <string name="terminal_connection_recovered">[connection recovered]\n</string>
     <string name="terminal_disconnected">\n[disconnected]\n</string>
     <string name="terminal_connection_error">\n[connection error: %1$s]\n</string>
+    <string name="terminal_reconnecting">\n[connection lost; retrying in %1$d seconds]\n</string>
     <string name="terminal_remote_shell_closed">\n[remote shell closed]\n</string>
     <string name="terminal_write_error">\n[write error: %1$s]\n</string>
 

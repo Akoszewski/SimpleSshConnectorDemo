@@ -89,6 +89,16 @@
         android:textColorHint="@color/text_muted" />
 
     <CheckBox
+        android:id="@+id/installDownloadedApksCheckBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="18dp"
+        android:buttonTint="@color/primary"
+        android:text="@string/label_install_downloaded_apks"
+        android:textColor="@color/text_primary"
+        android:textSize="15sp" />
+
+    <CheckBox
         android:id="@+id/uploadScreenshotsCheckBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -102,7 +112,7 @@
         android:id="@+id/generateButton"
         android:layout_width="match_parent"
         android:layout_height="52dp"
-        android:layout_marginBottom="14dp"
+        android:layout_marginBottom="12dp"
         android:background="@drawable/button_primary"
         android:text="@string/action_generate_key"
         android:textColor="@color/white" />
@@ -110,30 +120,43 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/public_key_container_background"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:minHeight="104dp"
+        android:orientation="horizontal"
+        android:padding="12dp">
 
-        <EditText
+        <TextView
             android:id="@+id/publicKeyEditText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:backgroundTint="@color/primary"
+            android:fontFamily="monospace"
+            android:gravity="top|start"
             android:hint="@string/hint_ssh_public_key"
-            android:inputType="textMultiLine"
-            android:minLines="4"
-            android:singleLine="false"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_muted" />
+            android:lineSpacingExtra="2dp"
+            android:maxLines="5"
+            android:minHeight="80dp"
+            android:overScrollMode="ifContentScrolls"
+            android:scrollbars="vertical"
+            android:textIsSelectable="true"
+            android:textColor="@color/public_key_text"
+            android:textColorHint="@color/public_key_hint"
+            android:textSize="13sp" />
 
-        <Button
+        <ImageButton
             android:id="@+id/copyButton"
-            android:layout_width="wrap_content"
+            android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_marginStart="10dp"
-            android:background="@drawable/button_secondary"
-            android:text="@string/action_copy"
-            android:textColor="@color/primary" />
+            android:layout_marginStart="12dp"
+            android:background="@drawable/button_primary"
+            android:contentDescription="@string/action_copy"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="12dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_content_copy_24"
+            android:tint="@color/white" />
     </LinearLayout>
     </LinearLayout>
 </ScrollView>

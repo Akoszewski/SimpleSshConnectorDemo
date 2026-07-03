@@ -72,6 +72,7 @@ Terminal behavior:
 
 - Before implementing terminal UI changes, think through the command-entry workflow first and keep the controls compact, predictable, and terminal-like.
 - The app includes a separate SSH terminal screen opened from the main screen.
+- In the terminal header row, show a compact refresh icon button in the upper-right corner using circular up/down arrows; tapping it clears the terminal output and reconnects the SSH shell as a fresh terminal session.
 - The terminal uses an SSH `ChannelShell` connected to the generated private key and configured SSH target.
 - The shell is opened with PTY enabled, `xterm-256color` as the PTY type, and `TERM=xterm-256color`.
 - The app passes the terminal size to the SSH shell with `setPtySize(...)`.
@@ -83,14 +84,18 @@ Terminal behavior:
 - Do not use a text `Send` button in the terminal command bar.
 - Place a second square icon button next to the send button with a copy icon; tapping it copies the current text from the command field at the bottom of the terminal.
 - Sending an empty command sends only Enter.
+- When the SSH connection is unavailable or has been disconnected, keep the command field editable and keep copying possible; controls or keyboard actions that would send bytes to the remote shell should do nothing without clearing the typed text.
+- When the SSH connection drops after a successful connection, show a toast that the SSH connection was lost and visibly gray out the controls that would send bytes to the remote shell while they are inactive.
 - The terminal provides a compact, narrower `Cancel` button that sends Ctrl-C to the remote shell to leave or interrupt an interactive Codex CLI session.
 - Next to the compact `Cancel` button, provide a square sideways-arrow button that sends Tab to the remote shell for command autocomplete and copies the completed line back into the command field.
 - When syncing autocomplete/history text back into the command field, measure the prompt boundary from the terminal cursor column, not from trimmed line text; prompts commonly end with a space and that separator must not be copied into the command.
 - At the end of the bottom command bar, provide a square upward-arrow button that sends Up to the remote shell and copies the recalled previous command back into the command field.
 - The terminal keeps the command input above the on-screen keyboard.
+- Leave a small visible gap between the bottom terminal controls and the on-screen keyboard so the controls are not clipped by the keyboard edge.
 - While connected, the terminal starts a foreground service and keeps wake/Wi-Fi locks active for the session.
 - The SSH session, shell channel, terminal screen buffer, keep-alive loop, and wake/Wi-Fi locks live outside `TerminalActivity`, so they survive activity recreation and navigation between app screens.
 - Returning to the terminal screen reattaches the UI to the existing terminal session and renders the current buffered terminal output.
 - The SSH session uses a keep-alive loop while the terminal remains connected.
+- If the SSH connection drops unexpectedly, the terminal should keep the typed command text and automatically retry the same SSH target and terminal start folder so it can recover when network connectivity returns.
 - Changing activities must not disconnect the terminal session.
-- Disconnect the terminal session when the user removes the app task.
+- Disconnect the terminal session and stop automatic retries when the user removes the app task.

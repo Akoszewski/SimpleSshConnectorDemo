@@ -4,6 +4,10 @@
     <color name="terminal_output_background">#071015</color>
     <color name="surface">#FFFFFF</color>
     <color name="surface_stroke">#DDE6EE</color>
+    <color name="public_key_surface">#FFFDF6</color>
+    <color name="public_key_stroke">#E5D8B7</color>
+    <color name="public_key_text">#2A2418</color>
+    <color name="public_key_hint">#8A7B61</color>
     <color name="terminal_surface">#E7EDF2</color>
     <color name="primary">#176B70</color>
     <color name="primary_pressed">#12575B</color>
