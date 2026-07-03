@@ -69,6 +69,7 @@ class TerminalForegroundService : Service() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
         } else {
+            @Suppress("DEPRECATION")
             Notification.Builder(this)
         }
     }

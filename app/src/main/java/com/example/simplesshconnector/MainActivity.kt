@@ -1,6 +1,7 @@
 package com.example.simplesshconnector
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.Notification
@@ -441,10 +442,7 @@ class MainActivity : Activity() {
     }
 
     private fun showDownloadedNotification(apkName: String, apkUri: Uri) {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (!canPostNotifications()) {
             return
         }
 
@@ -467,7 +465,7 @@ class MainActivity : Activity() {
             .setAutoCancel(true)
             .build()
 
-        notificationManager().notify(apkName.hashCode(), notification)
+        postNotification(apkName.hashCode(), notification)
     }
 
     private fun shouldInstallDownloadedApk(apkName: String): Boolean {
@@ -512,10 +510,21 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun canPostNotifications(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun postNotification(id: Int, notification: Notification) {
+        notificationManager().notify(id, notification)
+    }
+
     private fun notificationBuilder(): Notification.Builder {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, DOWNLOAD_CHANNEL_ID)
         } else {
+            @Suppress("DEPRECATION")
             Notification.Builder(this)
         }
     }
