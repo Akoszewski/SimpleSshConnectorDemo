@@ -30,6 +30,14 @@ Use this workflow to continue work already in progress without changing branches
    - For this repo, prefer `./build.sh` when a full build is needed.
    - Report any check that could not be run or failed.
 
+5. Commit in the repository's existing style and cadence when committing is requested.
+   - Stay on the current branch; do not create or switch branches for the commit.
+   - Inspect recent commit history before the first commit.
+   - Match the local style: short imperative subject lines such as `Add ...`, `Fix ...`, `Improve ...`, or `Move ...`.
+   - Commit after coherent, buildable units of work rather than after every tiny edit.
+   - Before every commit, run the project's build command. For this repo, prefer `./build.sh` when available; otherwise use the established Gradle build command.
+   - Do not commit if the build fails. Fix the issue or report the blocker.
+
 ## Guardrails
 
 - Never discard or rewrite user changes unless explicitly requested.
