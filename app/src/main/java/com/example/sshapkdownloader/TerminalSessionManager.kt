@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 object TerminalSessionManager {
     interface Listener {
@@ -29,6 +30,7 @@ object TerminalSessionManager {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val disconnectStarted = AtomicBoolean(false)
     private val reconnectScheduled = AtomicBoolean(false)
+    private val connectionGeneration = AtomicInteger(0)
     private val flushPendingOutputRunnable = Runnable {
         flushPendingOutput()
     }
@@ -102,13 +104,14 @@ object TerminalSessionManager {
         disconnectStarted.set(false)
         TerminalForegroundService.start(appContext)
         acquireTerminalLocks(appContext)
+        val generation = connectionGeneration.get()
 
         Thread {
             runCatching {
                 val sshSession = SshSessionFactory.create(SshTargetParser.parse(address), privateKey)
                 session = sshSession
                 sshSession.connect(15_000)
-                if (stopRequested) {
+                if (!isConnectionCurrent(generation)) {
                     disconnectShell()
                     return@Thread
                 }
@@ -124,19 +127,19 @@ object TerminalSessionManager {
                 commandOutput = remoteOutput
 
                 shell.connect(15_000)
-                if (stopRequested) {
+                if (!isConnectionCurrent(generation)) {
                     disconnectShell()
                     return@Thread
                 }
                 changeInitialDirectory(remoteOutput, initialDirectory)
                 connecting = false
-                startKeepAliveLoop(sshSession)
+                startKeepAliveLoop(sshSession, generation)
                 appendOutput(appContext.getString(R.string.terminal_connected))
                 setTerminalEnabled(true)
-                readShellOutput(remoteInput)
+                readShellOutput(remoteInput, generation)
             }.onFailure { error ->
                 connecting = false
-                if (!stopRequested) {
+                if (isConnectionCurrent(generation)) {
                     appendOutput(appContext.getString(R.string.terminal_connection_error, error.displayMessage()))
                     setTerminalEnabled(false)
                     scheduleReconnect()
@@ -155,6 +158,7 @@ object TerminalSessionManager {
     fun disconnectByUser() {
         stopRequested = true
         reconnectScheduled.set(false)
+        connectionGeneration.incrementAndGet()
         appendOutput(contextString(R.string.terminal_disconnected))
         setTerminalEnabled(false)
         disconnectShellAsync()
@@ -163,8 +167,43 @@ object TerminalSessionManager {
     fun disconnectBecauseTaskRemoved() {
         stopRequested = true
         reconnectScheduled.set(false)
+        connectionGeneration.incrementAndGet()
         setTerminalEnabled(false)
         disconnectShell(stopForegroundService = false)
+    }
+
+    fun refresh(context: Context, address: String, privateKey: String, initialDirectory: String) {
+        val appContext = context.applicationContext
+        val request = ConnectionRequest(appContext, address, privateKey, initialDirectory)
+        val generation = connectionGeneration.incrementAndGet()
+        applicationContext = appContext
+        connectionRequest = request
+        stopRequested = true
+        reconnectScheduled.set(false)
+        setTerminalEnabled(false)
+
+        Thread {
+            disconnectShell(
+                stopForegroundService = false,
+                releaseLocks = true,
+                notifyDisconnected = false
+            )
+            disconnectStarted.set(false)
+            clearOutput()
+            if (generation == connectionGeneration.get()) {
+                stopRequested = false
+                connect(
+                    request.context,
+                    request.address,
+                    request.privateKey,
+                    request.initialDirectory
+                )
+            }
+        }.apply {
+            name = "ssh-terminal-refresh"
+            isDaemon = true
+            start()
+        }
     }
 
     fun sendCommand(command: String) {
@@ -203,9 +242,9 @@ object TerminalSessionManager {
         }
     }
 
-    private fun readShellOutput(remoteInput: InputStream) {
+    private fun readShellOutput(remoteInput: InputStream, generation: Int) {
         val buffer = ByteArray(4096)
-        while (!stopRequested) {
+        while (isConnectionCurrent(generation)) {
             val bytesRead = remoteInput.read(buffer)
             if (bytesRead < 0) {
                 break
@@ -214,26 +253,26 @@ object TerminalSessionManager {
             appendOutput(bytes)
         }
 
-        if (!stopRequested) {
+        if (isConnectionCurrent(generation)) {
             appendOutput(contextString(R.string.terminal_remote_shell_closed))
             setTerminalEnabled(false)
             scheduleReconnect()
         }
     }
 
-    private fun startKeepAliveLoop(sshSession: Session) {
+    private fun startKeepAliveLoop(sshSession: Session, generation: Int) {
         keepAliveThread = Thread {
-            while (!stopRequested && sshSession.isConnected) {
+            while (isConnectionCurrent(generation) && sshSession.isConnected) {
                 try {
                     Thread.sleep(TERMINAL_KEEP_ALIVE_INTERVAL_MS)
-                    if (!stopRequested && sshSession.isConnected) {
+                    if (isConnectionCurrent(generation) && sshSession.isConnected) {
                         sshSession.sendKeepAliveMsg()
                     }
                 } catch (error: InterruptedException) {
                     Thread.currentThread().interrupt()
                     return@Thread
                 } catch (error: Throwable) {
-                    if (!stopRequested) {
+                    if (isConnectionCurrent(generation)) {
                         appendOutput(contextString(R.string.terminal_connection_error, error.displayMessage()))
                         setTerminalEnabled(false)
                         scheduleReconnect()
@@ -379,6 +418,7 @@ object TerminalSessionManager {
             return
         }
 
+        val generation = connectionGeneration.get()
         appendOutput(contextString(R.string.terminal_reconnecting, TERMINAL_RECONNECT_DELAY_MS / 1000))
         Thread {
             disconnectShell(
@@ -395,7 +435,7 @@ object TerminalSessionManager {
                 return@Thread
             }
             reconnectScheduled.set(false)
-            if (!stopRequested) {
+            if (!stopRequested && generation == connectionGeneration.get()) {
                 connect(
                     request.context,
                     request.address,
@@ -412,6 +452,10 @@ object TerminalSessionManager {
 
     private fun isSessionActive(): Boolean {
         return session?.isConnected == true && channel?.isConnected == true
+    }
+
+    private fun isConnectionCurrent(generation: Int): Boolean {
+        return !stopRequested && generation == connectionGeneration.get()
     }
 
     private fun acquireTerminalLocks(context: Context) {

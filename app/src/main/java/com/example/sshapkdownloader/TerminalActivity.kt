@@ -30,6 +30,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
     private lateinit var commandEditText: EditText
     private lateinit var sendButton: ImageButton
     private lateinit var copyCommandButton: ImageButton
+    private lateinit var refreshButton: ImageButton
     private lateinit var autocompleteButton: ImageButton
     private lateinit var previousCommandButton: ImageButton
     private lateinit var nextCommandButton: ImageButton
@@ -47,6 +48,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         commandEditText = findViewById(R.id.commandEditText)
         sendButton = findViewById(R.id.sendButton)
         copyCommandButton = findViewById(R.id.copyCommandButton)
+        refreshButton = findViewById(R.id.refreshButton)
         autocompleteButton = findViewById(R.id.autocompleteButton)
         previousCommandButton = findViewById(R.id.previousCommandButton)
         nextCommandButton = findViewById(R.id.nextCommandButton)
@@ -65,6 +67,9 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         }
         copyCommandButton.setOnClickListener {
             copyCommand()
+        }
+        refreshButton.setOnClickListener {
+            refreshTerminal()
         }
         exitButton.setOnClickListener {
             TerminalSessionManager.sendBytes(CONTROL_C_BYTES)
@@ -168,6 +173,23 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
 
         setTerminalControlsAvailable(false)
         TerminalSessionManager.connect(this, address, privateKey, terminalStartPath)
+    }
+
+    private fun refreshTerminal() {
+        val address = preferences.getString("ip_address", "")?.trim().orEmpty()
+        val privateKey = preferences.getString("private_ssh_key", "").orEmpty()
+        val terminalStartPath = preferences.getString("terminal_start_path", "")?.trim().orEmpty()
+
+        if (address.isBlank() || privateKey.isBlank()) {
+            Toast.makeText(this, getString(R.string.message_ssh_target_and_key_required), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        remoteInputPrimed = false
+        remoteInputPromptColumn = null
+        inputSyncGeneration++
+        setTerminalControlsAvailable(false)
+        TerminalSessionManager.refresh(this, address, privateKey, terminalStartPath)
     }
 
     private fun sendCommand() {

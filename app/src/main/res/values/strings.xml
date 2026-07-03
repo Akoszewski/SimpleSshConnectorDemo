@@ -11,6 +11,7 @@
     <string name="action_send">Send</string>
     <string name="action_exit">Cancel</string>
     <string name="action_copy_command">Copy command</string>
+    <string name="action_refresh_terminal">Refresh terminal</string>
     <string name="action_autocomplete">Autocomplete command</string>
     <string name="action_previous_command">Previous command</string>
     <string name="action_next_command">Next command</string>

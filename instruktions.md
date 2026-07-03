@@ -72,6 +72,7 @@ Terminal behavior:
 
 - Before implementing terminal UI changes, think through the command-entry workflow first and keep the controls compact, predictable, and terminal-like.
 - The app includes a separate SSH terminal screen opened from the main screen.
+- In the terminal header row, show a compact refresh icon button in the upper-right corner using circular up/down arrows; tapping it clears the terminal output and reconnects the SSH shell as a fresh terminal session.
 - The terminal uses an SSH `ChannelShell` connected to the generated private key and configured SSH target.
 - The shell is opened with PTY enabled, `xterm-256color` as the PTY type, and `TERM=xterm-256color`.
 - The app passes the terminal size to the SSH shell with `setPtySize(...)`.
