@@ -27,14 +27,12 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
 import java.io.OutputStream
-import java.security.MessageDigest
 
 class MainActivity : Activity() {
     private val preferences by lazy {
         AppPreferences.from(this)
     }
 
-    private lateinit var apkBinaryHashTextView: TextView
     private lateinit var sharedFolderPathTextView: TextView
     private lateinit var apkListContainer: LinearLayout
     private var isLoadingRemoteFileList = false
@@ -44,7 +42,6 @@ class MainActivity : Activity() {
         createNotificationChannel()
         requestNotificationPermission()
         setContentView(R.layout.activity_main)
-        apkBinaryHashTextView = findViewById(R.id.apkBinaryHashTextView)
         sharedFolderPathTextView = findViewById(R.id.sharedFolderPathTextView)
         apkListContainer = findViewById(R.id.apkListContainer)
         findViewById<Button>(R.id.terminalButton).setOnClickListener {
@@ -59,7 +56,6 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.uploadButton).setOnClickListener {
             openUploadFilePicker()
         }
-        displayApkBinaryHash()
     }
 
     @Deprecated("Deprecated in Java")
@@ -268,36 +264,6 @@ class MainActivity : Activity() {
                 deleteRemoteListFile(fileName)
             }
             .show()
-    }
-
-    private fun displayApkBinaryHash() {
-        Thread {
-            val text = runCatching {
-                getString(R.string.apk_binary_hash, installedApkSha256())
-            }.getOrElse { error ->
-                getString(R.string.apk_binary_hash_error, error.displayMessage())
-            }
-            runOnUiThread {
-                apkBinaryHashTextView.text = text
-            }
-        }.start()
-    }
-
-    private fun installedApkSha256(): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        File(applicationInfo.sourceDir).inputStream().use { input ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val bytesRead = input.read(buffer)
-                if (bytesRead == -1) {
-                    break
-                }
-                digest.update(buffer, 0, bytesRead)
-            }
-        }
-        return digest.digest().joinToString(separator = "") { byte ->
-            "%02x".format(byte)
-        }
     }
 
     private fun downloadApk(apkName: String) {

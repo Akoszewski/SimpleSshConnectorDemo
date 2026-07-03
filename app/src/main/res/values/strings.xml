@@ -33,10 +33,6 @@
     <string name="label_install_downloaded_apks">Install downloaded .apk files automatically</string>
     <string name="label_upload_screenshots">Upload screenshots to shared folder</string>
 
-    <string name="apk_binary_hash_loading">App APK SHA-256: ...</string>
-    <string name="apk_binary_hash">App APK SHA-256: %1$s</string>
-    <string name="apk_binary_hash_error">App APK SHA-256 unavailable: %1$s</string>
-
     <string name="message_ssh_target_and_key_required">SSH target and generated key are required</string>
     <string name="message_ssh_target_key_and_path_required">SSH target, generated key, and shared folder are required</string>
     <string name="message_connecting">Connecting</string>
