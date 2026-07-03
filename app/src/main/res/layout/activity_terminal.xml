@@ -29,7 +29,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginStart="8dp"
-            android:background="@drawable/button_secondary"
+            android:background="@drawable/button_primary"
             android:contentDescription="@string/action_refresh_terminal"
             android:padding="12dp"
             android:src="@drawable/ic_refresh_circle_24" />
