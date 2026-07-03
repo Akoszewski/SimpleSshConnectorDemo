@@ -3,7 +3,7 @@
 
     <string name="action_terminal">Terminal</string>
     <string name="action_configuration">Configuration</string>
-    <string name="action_connect">Load files</string>
+    <string name="action_connect">Load shared files</string>
     <string name="action_delete">Delete</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_generate_key">Generate key</string>
