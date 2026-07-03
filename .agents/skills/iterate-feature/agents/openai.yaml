@@ -1,0 +1,4 @@
+interface:
+  display_name: "Iterate Feature"
+  short_description: "Continue work on current branch"
+  default_prompt: "Use $iterate-feature to continue improving the current work without changing branches."

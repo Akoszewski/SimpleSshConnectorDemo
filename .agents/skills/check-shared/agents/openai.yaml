@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check Shared"
+  short_description: "Inspect files from shared artifacts"
+  default_prompt: "Use $check-shared to inspect the shared artifact files I mention."
