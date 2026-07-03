@@ -28,6 +28,7 @@ Initial UI:
 - In the configuration activity, show an `Upload screenshots to shared folder` checkbox.
 - When this checkbox is enabled, request image read permission if needed and automatically upload newly created screenshot files to the configured shared folder over SFTP.
 - The app should generate its own Ed25519 SSH key instead of asking the user to paste a private key.
+- New generated public SSH keys should use `simple-ssh-connector` as their public key comment/name.
 - In the configuration activity, add a `Generate key` button below the SSH target field.
 - Under `Generate key`, show a text field containing the generated public key for copying.
 - Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.

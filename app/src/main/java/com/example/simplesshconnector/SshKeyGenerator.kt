@@ -5,7 +5,7 @@ import com.jcraft.jsch.KeyPair
 import java.io.ByteArrayOutputStream
 
 object SshKeyGenerator {
-    private const val KEY_COMMENT = "ssh-apk-downloader"
+    private const val KEY_COMMENT = "simple-ssh-connector"
 
     fun generate(): GeneratedSshKeyPair {
         JschEd25519Support.configure()

@@ -11,7 +11,7 @@ class SshKeyGeneratorTest {
 
         assertTrue(keyPair.privateKeyPem.startsWith("-----BEGIN OPENSSH PRIVATE KEY-----"))
         assertTrue(keyPair.publicKeyOpenSsh.startsWith("ssh-ed25519 "))
-        assertTrue(keyPair.publicKeyOpenSsh.endsWith(" ssh-apk-downloader"))
+        assertTrue(keyPair.publicKeyOpenSsh.endsWith(" simple-ssh-connector"))
 
         JschEd25519Support.configure()
         JSch().addIdentity(

@@ -13,7 +13,7 @@ object SshSessionFactory {
 
         val jsch = JSch()
         jsch.addIdentity(
-            "ssh-apk-downloader-key",
+            "simple-ssh-connector-key",
             privateKey.toByteArray(),
             null,
             null
