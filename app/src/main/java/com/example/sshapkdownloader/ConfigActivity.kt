@@ -10,6 +10,7 @@ import android.text.TextWatcher
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 
 class ConfigActivity : Activity() {
@@ -22,7 +23,7 @@ class ConfigActivity : Activity() {
     private lateinit var terminalStartPathEditText: EditText
     private lateinit var installDownloadedApksCheckBox: CheckBox
     private lateinit var uploadScreenshotsCheckBox: CheckBox
-    private lateinit var publicKeyEditText: EditText
+    private lateinit var publicKeyEditText: TextView
     private lateinit var generateButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {

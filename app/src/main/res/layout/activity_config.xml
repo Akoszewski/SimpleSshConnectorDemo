@@ -123,16 +123,17 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <EditText
+        <TextView
             android:id="@+id/publicKeyEditText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:background="@android:drawable/edit_text"
             android:backgroundTint="@color/primary"
             android:hint="@string/hint_ssh_public_key"
-            android:inputType="textMultiLine"
             android:minLines="4"
-            android:singleLine="false"
+            android:padding="8dp"
+            android:textIsSelectable="true"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_muted" />
 
