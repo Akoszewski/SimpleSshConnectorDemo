@@ -128,6 +128,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         val initialPaddingTop = rootView.paddingTop
         val initialPaddingRight = rootView.paddingRight
         val initialPaddingBottom = rootView.paddingBottom
+        val keyboardClearancePx = KEYBOARD_CLEARANCE_DP.dpToPx()
 
         rootView.setOnApplyWindowInsetsListener { view, insets ->
             val keyboardBottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -147,7 +148,9 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
             } else {
                 0
             }
-            val extraKeyboardPadding = (keyboardBottomInset - navigationBottomInset).coerceAtLeast(0)
+            val keyboardVisible = keyboardBottomInset > navigationBottomInset
+            val extraKeyboardPadding = (keyboardBottomInset - navigationBottomInset).coerceAtLeast(0) +
+                if (keyboardVisible) keyboardClearancePx else 0
 
             view.setPadding(
                 initialPaddingLeft,
@@ -158,7 +161,10 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
             scrollOutputToBottom()
             insets
         }
+        rootView.requestApplyInsets()
     }
+
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun connectShell() {
         val address = preferences.getString("ip_address", "")?.trim().orEmpty()
@@ -284,6 +290,7 @@ class TerminalActivity : Activity(), TerminalSessionManager.Listener {
         val DOWN_ARROW_KEY_BYTES = "\u001B[B".toByteArray(Charsets.UTF_8)
         const val INPUT_EDIT_SYNC_DELAY_MS = 150L
         const val INPUT_EDIT_SYNC_MAX_ATTEMPTS = 6
+        const val KEYBOARD_CLEARANCE_DP = 12
         const val OUTPUT_SCROLL_BOTTOM_TOLERANCE_PX = 24
     }
 }

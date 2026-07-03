@@ -88,6 +88,7 @@ Terminal behavior:
 - When syncing autocomplete/history text back into the command field, measure the prompt boundary from the terminal cursor column, not from trimmed line text; prompts commonly end with a space and that separator must not be copied into the command.
 - At the end of the bottom command bar, provide a square upward-arrow button that sends Up to the remote shell and copies the recalled previous command back into the command field.
 - The terminal keeps the command input above the on-screen keyboard.
+- Leave a small visible gap between the bottom terminal controls and the on-screen keyboard so the controls are not clipped by the keyboard edge.
 - While connected, the terminal starts a foreground service and keeps wake/Wi-Fi locks active for the session.
 - The SSH session, shell channel, terminal screen buffer, keep-alive loop, and wake/Wi-Fi locks live outside `TerminalActivity`, so they survive activity recreation and navigation between app screens.
 - Returning to the terminal screen reattaches the UI to the existing terminal session and renders the current buffered terminal output.
