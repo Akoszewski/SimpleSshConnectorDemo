@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace "com.example.sshapkdownloader"
+    namespace "com.example.simplesshconnector"
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.example.sshapkdownloader"
+        applicationId "com.example.simplesshconnector"
         minSdk 24
         targetSdk 36
         versionCode 1

@@ -8,4 +8,4 @@ export PATH=/home/debian/Android/Sdk/platform-tools:/home/debian/Android/Sdk/cmd
 
 gradle assembleDebug
 mkdir -p "$HOME/Artifacts/android"
-cp app/build/outputs/apk/debug/app-debug.apk "$HOME/Artifacts/android/SshApkDownloader-debug.apk"
+cp app/build/outputs/apk/debug/app-debug.apk "$HOME/Artifacts/android/SimpleSshConnector-debug.apk"

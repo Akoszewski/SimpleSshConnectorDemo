@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SshApkDownloader"
+rootProject.name = "SimpleSshConnector"
 include ":app"

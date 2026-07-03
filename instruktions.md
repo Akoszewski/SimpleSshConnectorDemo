@@ -1,12 +1,12 @@
-# SshApkDownloader specification
+# SimpleSshConnector specification
 
-Android app name: `SshApkDownloader`.
+Android app name: `SimpleSshConnector`.
 
 Implementation requirements:
 
 - Write the app in Kotlin.
 - Do not use Flutter.
-- Store the project in `/home/debian/projects/SshApkDownloader`.
+- Store the project in `/home/debian/projects/SimpleSshConnector`.
 - Keep this specification file in the repository. Do not add it to `.gitignore`.
 
 Initial UI:

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SshApkDownloader</string>
+    <string name="app_name">SimpleSshConnector</string>
 
     <string name="action_terminal">Terminal</string>
     <string name="action_configuration">Configuration</string>
