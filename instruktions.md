@@ -33,19 +33,21 @@ Initial UI:
 - Next to the public key text field, show a `Copy` button that copies the public key to the clipboard.
 - Store the generated private key internally for SSH connections, encrypted at rest with a system-based keystore-backed key and without requiring biometric confirmation.
 - Show a visually separated `Shared folder` section on the main screen with the configured remote path below the section title.
-- Show a `Show` button in the shared folder section.
-- Show an `Upload` button in the same row as `Show`; both buttons should take half of the available row width.
+- Show a `Reload` button in the shared folder section.
+- Show an `Upload` button in the same row as `Reload`; both buttons should take half of the available row width.
 - Pressing `Upload` should open the phone file picker and upload the selected file to the configured shared folder over SFTP.
 - Keep clear vertical spacing between the shared folder action buttons and the APK download buttons.
 - Use a polished visual style with consistent colors, readable text contrast, and comfortable spacing.
 
 Connection behavior:
 
-- After pressing `Show`, connect to the server using the provided credentials.
+- When the main screen opens, connect to the server using the provided credentials and load the shared folder.
+- Pressing `Reload` should load the shared folder again.
 - Load all regular files located on the server at the configured remote shared folder path.
 - Display one button per file.
 - Button labels should be the filenames.
-- The file buttons should appear one below another in a scrollable view.
+- The file buttons should appear one below another in a scrollable view with a fixed 300dp height.
+- When the shared folder has no files, show a centered empty-folder illustration with explanatory text.
 - Show a red trash icon button next to every file button.
 - Pressing the trash icon should show a confirmation dialog before removing the file from the shared folder.
 - Use Toast messages for SSH errors.

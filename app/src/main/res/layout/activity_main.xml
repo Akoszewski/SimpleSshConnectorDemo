@@ -118,12 +118,22 @@
                     android:textSize="12sp" />
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/apkListContainer"
+            <ScrollView
+                android:id="@+id/apkListScrollView"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingTop="8dp" />
+                android:layout_height="300dp"
+                android:fillViewport="true"
+                android:nestedScrollingEnabled="true"
+                android:overScrollMode="ifContentScrolls"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:id="@+id/apkListContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="8dp" />
+            </ScrollView>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
